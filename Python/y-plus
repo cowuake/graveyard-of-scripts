@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+import math as m
+
+def read ( type, idntf ) :
+    if type == 'num' :
+        while True:
+            try :
+                var = float ( input ('   Insert ' + idntf + ': ') )
+                return ( var )
+                break
+            except ValueError :
+                print ( 'Invalid input!' )
+
+print ( )                
+                
+rho = read ( 'num', 'density' )
+mu = read ( 'num', 'dynamic viscosity' )
+U = read ( 'num', 'reference velocity' )
+L = read ( 'num', 'reference lenght' )
+
+Re = rho * U * L / mu
+print ( )
+print ( '   Reynolds number is: ' + str ( Re ) )
+print ( )
+
+Cf = .026 / Re ** ( 1/7 )
+tauW = .5 * rho * Cf * U ** 2
+Ufric = m.sqrt ( tauW / rho )
+Ds1 = mu / ( Ufric * rho )
+
+print ( '   From flat-plate boundary layer theory:' )
+print ( )
+print ( '   ++++++++++++++++++++++++++++++++++++' )
+print ( '        Y+      |           Ds' )
+print ( '   ------------------------------------' )
+print ( '        1       |      {:e}'.format( Ds1 ) )
+print ( '        5       |      {:e}'.format( Ds1 * 5 ) )
+print ( '       30       |      {:e}'.format( Ds1 * 30 ) )
+print ( '   ++++++++++++++++++++++++++++++++++++')
+print ( )

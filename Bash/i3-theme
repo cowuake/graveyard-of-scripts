@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+sed -i "/set \$theme/c\set \$theme\t\t\t$1" ~/.config/i3/config
+
+sed -i "/focused_workspace/c\ \t\t\tfocused_workspace\t\$$1-focused_colors" ~/.config/i3/config
+sed -i "/^client.focused/c\client.focused\t\t\t\$$1-focused_colors" ~/.config/i3/config
+sed -i "/inactive_workspace/c\ \t\t\tinactive_workspace\t\$$1-inactive_colors" ~/.config/i3/config
+
+mkdir -p $HOME/.config/dunst
+cp $HOME/.config/i3/stuff/dunst/dunstrc-$1 $HOME/.config/dunst/dunstrc
+killall dunst
+
+i3-msg reload
+i3-msg restart

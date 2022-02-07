@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+TOGGLE=$1
+PREFIX="Airplane Mode toggle: "
+
+if   [[ $TOGGLE = "on" ]]; then
+
+    OUTPUT=$(connmanctl enable offline)
+    echo "$PREFIX $OUTPUT"
+    notify-send -u normal "$PREFIX $OUTPUT"
+
+elif [[ $TOGGLE = "off" ]]; then
+
+    OUTPUT=$(connmanctl disable offline)
+    echo "$PREFIX $OUTPUT"
+    notify-send -u normal "$PREFIX $OUTPUT"
+
+else
+    
+    ERROR_MESSAGE="Invalid argument."
+    echo "$PREFIX $ERROR_MESSAGE"
+    notify-send -u normal "$PREFIX $ERROR_MESSAGE"
+
+fi

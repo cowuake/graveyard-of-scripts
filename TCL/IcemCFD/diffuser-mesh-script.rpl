@@ -1,0 +1,943 @@
+#############################################################################
+## ======================================================================= ##
+## ====== IcemCFD script - IGV, OGV, pre-diffuser and dump diffuser ====== ##
+## ======================================================================= ##
+#############################################################################
+
+# ======================
+# ====== CONTROLS ======
+# ======================
+
+# Set the number of cores to be used for mesh generation
+# (Involves the Octree-based TETRA meshing)
+set N_CORES 12
+
+# Choose a name for the fluid region
+set FLUID_REGION FLUID
+
+# Specify if topology has to be built again (regenerate curves)
+set REBUILD_TOPOLOGY 1
+
+# Specify if internal walls have to be retained
+set KEEP_INTERNAL_WALLS 1
+
+# Specify settings for the diagnostic topology 
+set DIAGNOSTIC_TOPOLOGY_TOLERANCE 0.0007
+set DIAGNOSTIC_TOPOLOGY_ANGLE 30
+
+# Set essential global meshing parameters
+set MAXIMUM_CELL_SIZE 0.0015
+set EDGE_CRITERION 0.02
+
+# Set essential gloabl refinement parameters
+set CURVATURE_PROXIMITY_REFINEMENT 36
+set CURVATURE_PROXIMITY_ELEMENTSINGAP 5
+
+# Set parameters for the prism layers
+set PRISM_INITIAL_LAYERS 3
+set PRISM_INITIAL_HEIGHT 0
+set PRISM_INITIAL_RATIO 1.2
+set PRISM_INITIAL_TOTAL_HEIGHT 0
+set PRISM_MIN_QUALITY 0.1
+set PRISM_MAX_ANGLE 180
+set PRISM_FILLET 0.1
+set PRISM_TETRA_SMOOTHING_LIMIT 0.3
+set PRISM_TETRA_SMOOTHING_STEPS 10
+set PRISM_TRIANGLE_SMOOTHING_STEPS 5
+
+# PER-PART MESH SETTINGS
+# ======================
+# Generate prism layers for surface group (boolean)
+set EXIT_ADDITIONAL_LOWER__PRISM 1
+set EXIT_ADDITIONAL_UPPER__PRISM 1
+set EXIT_ARC_LOWER__PRISM 1
+set EXIT_ARC_UPPER__PRISM 1
+set EXIT_FILM_LOWER__PRISM 1
+set EXIT_FILM_UPPER__PRISM 1
+set EXIT_INNER__PRISM 1
+set EXIT_LAST__PRISM 1
+set EXIT_OUTER__PRISM 1
+set FSN_INLET__PRISM 1
+set HOLES_LOWER__PRISM 1
+set HOLES_UPPER__PRISM 1
+set INLET__PRISM 0
+set IP_CRIC__PRISM 0
+set IP_INNER_ANNULUS__PRISM 0
+set PERIODIC_LEFT__PRISM 0
+set PERIODIC_RIGHT__PRISM 0
+set WALLS__PRISM 1
+# Maximum dimensions for cells on group surfaces (0.0 -> no constraints)
+set EXIT_ADDITIONAL_LOWER__EMAX 0.0001
+set EXIT_ADDITIONAL_UPPER__EMAX 0.0001
+set EXIT_ARC_LOWER__EMAX 0.0002
+set EXIT_ARC_UPPER__EMAX 0.0002
+set EXIT_FILM_LOWER__EMAX 0.0001
+set EXIT_FILM_UPPER__EMAX 0.0001
+set EXIT_INNER__EMAX 0.0002
+set EXIT_LAST__EMAX 0.0001
+set EXIT_OUTER__EMAX 0.0002
+set FSN_INLET__EMAX 0.001
+set HOLES_LOWER__EMAX 0.0005
+set HOLES_UPPER__EMAX 0.0005
+set INLET__EMAX 0.0
+set IP_CRIC__EMAX 0
+set IP_INNER_ANNULUS__EMAX 0
+set PERIODIC_LEFT__EMAX 0.0
+set PERIODIC_RIGHT__EMAX 0.0
+set WALLS__EMAX 0.0
+# Expansion law
+# ================
+#   -1 undefined
+#    0 exponential
+#    1 linear
+set EXIT_ADDITIONAL_LOWER__LAW -1
+set EXIT_ADDITIONAL_UPPER__LAW -1
+set EXIT_ARC_LOWER__LAW -1
+set EXIT_ARC_UPPER__LAW -1
+set EXIT_FILM_LOWER__LAW -1
+set EXIT_FILM_UPPER__LAW -1
+set EXIT_INNER__LAW -1
+set EXIT_LAST__LAW -1
+set EXIT_OUTER__LAW -1
+set FSN_INLET__LAW -1
+set HOLES_LOWER__LAW -1
+set HOLES_UPPER__LAW -1
+set INLET__LAW -1
+set IP_CRIC__LAW -1
+set IP_INNER_ANNULUS__LAW -1
+set PERIODIC_LEFT__LAW -1
+set PERIODIC_RIGHT__LAW -1
+set WALLS__LAW -1
+set WALLS__PRISM_LAW exponential
+# Flag for internal walls (boolean)
+set EXIT_ADDITIONAL_LOWER__INTERNAL 0
+set EXIT_ADDITIONAL_UPPER__INTERNAL 0
+set EXIT_ARC_LOWER__INTERNAL 0
+set EXIT_ARC_UPPER__INTERNAL 0
+set EXIT_FILM_LOWER__INTERNAL 0
+set EXIT_FILM_UPPER__INTERNAL 0
+set EXIT_INNER__INTERNAL 0
+set EXIT_LAST__INTERNAL 0
+set EXIT_OUTER__INTERNAL 0
+set FSN_INLET__INTERNAL 0
+set HOLES_LOWER__INTERNAL 0
+set HOLES_UPPER__INTERNAL 0
+set INLET__INTERNAL 0
+set IP_CRIC__INTERNAL 1
+set IP_INNER_ANNULUS__INTERNAL 1
+set PERIODIC_LEFT__INTERNAL 0
+set PERIODIC_RIGHT__INTERNAL 0
+set WALLS__INTERNAL 0
+
+
+# =======================
+# ====== FUNCTIONS ======
+# =======================
+
+# Save the geometry (TETIN) file
+proc saveGeometry { name } {
+    ic_save_tetin $name.tin
+}
+
+# Load the geometry (TETIN) file
+proc loadGeometry { name } {
+    ic_load_tetin $name.tin
+}
+
+# Save the project file
+proc saveProject { name } {
+    ic_boco_save $name.fbc
+    ic_boco_save $name.atr
+    ic_save_project_file $name.prj
+}
+
+
+# Save the mesh (does not perform conversion to solver format)
+proc saveMesh { name } {
+    ic_uns_check_duplicate_numbers
+    ic_uns_renumber_all_elements 1 1
+    ic_save_unstruct $name.uns 1 {} {} {}
+}
+
+# Print headings during the execution of the scripts
+proc printHeading { heading } {
+    set headingLength [string length $heading]
+    set totalLength [expr $headingLength + 14]
+    set sideFiller [string repeat "=" 6]
+    set filler [string repeat "=" $totalLength]
+    set line [concat $sideFiller $heading $sideFiller]
+    mess $filler
+    mess "\n"
+    mess $line
+    mess "\n"
+    mess $filler
+    mess "\n"
+}
+
+
+# ====================================
+# ====== PRELIMINARY OPERATIONS ======
+# ====================================
+
+# Load the initial geometry
+# The user should (in advance):
+#   Save the geometry from CAD in Parasolid (ASCII) format
+#   Manually import the Parasolid geometry in IcemCFD
+#   Group surfaces if surfaces tags are not present
+loadGeometry project1
+
+
+# ==================================
+# ====== GLOBAL MESH SETTINGS ======
+# ==================================
+
+# Set topology tolerance
+ic_set_meshing_params global 0
+ic_undo_group_begin
+ic_set_meshing_params global 0 gttol 1e-4 gtrel 1
+ic_regenerate_tris
+ic_undo_group_end
+
+
+# ==================================
+# ====== GEOMETRY PREPARATION ======
+# ==================================
+
+printHeading "PREPARING THE GEOMETRY..."
+
+# Delete all curves (will be recreated later by diagnostic topology build)
+if { $REBUILD_TOPOLOGY == 1 } {
+    ic_delete_geometry curve all
+}
+
+# Combine related surfaces into parts
+
+set PARTS [list INLET PERIODIC_LEFT PERIODIC_RIGHT WALLS EXIT_LOWER EXIT_UPPER EXIT_CAGE EXIT_INNER EXIT_OUTER EXIT_LAST FSN_INLET HOLES_LOWER HOLES_UPPER EXIT_ARC_LOWER EXIT_ARC_UPPER EXIT_FILM_LOWER EXIT_FILM_UPPER EXIT_ADDITIONAL_LOWER EXIT_ADDITIONAL_UPPER]
+
+set PART_STRINGS [list "*\INLET_" "*\PERIODIC_LEFT_" "*\PERIODIC_RIGHT_" "*\WALLS_" "*\EXIT_LOWER_" "*\EXIT_UPPER_" "*\EXIT_CAGE_" "*\EXIT_INNER_" "*\EXIT_OUTER_" "*\EXIT_LAST_" "*\FSN_INLET_" "*\HOLES_LOWER_" "*\HOLES_UPPER_" "*\EXIT_ARC_LOWER_" "*\EXIT_ARC_UPPER_" "*\EXIT_FILM_LOWER_" "*\EXIT_FILM_UPPER_" "*\EXIT_ADDITIONAL_LOWER_" "*\EXIT_ADDITIONAL_UPPER_"]
+
+# Only needed if all the surface tags were correctly exported to the Parasolid geometry
+# If surface groups were created manually the following code is not effective
+foreach part $PARTS partString $PART_STRINGS {
+    set slct_parts [ic_geo_list_parts $partString]
+    ic_geo_set_family surface $part families $slct_parts
+    ic_geo_delete_family $slct_parts
+}
+
+
+# ====================================
+# ====== PER-PART MESH SETTINGS ======
+# ====================================
+
+ic_undo_group_begin
+ic_geo_set_family_params EXIT_ADDITIONAL_LOWER no_crv_inf \
+    prism $EXIT_ADDITIONAL_LOWER__PRISM hexcore 0 \
+    emax $EXIT_ADDITIONAL_LOWER__EMAX \
+    law $EXIT_ADDITIONAL_LOWER__LAW \
+    internal_wall $EXIT_ADDITIONAL_LOWER__INTERNAL
+ic_geo_set_family_params EXIT_ADDITIONAL_UPPER no_crv_inf \
+    prism $EXIT_ADDITIONAL_UPPER__PRISM hexcore 0 \
+    emax $EXIT_ADDITIONAL_UPPER__EMAX \
+    law $EXIT_ADDITIONAL_UPPER__LAW \
+    internal_wall $EXIT_ADDITIONAL_UPPER__INTERNAL
+ic_geo_set_family_params EXIT_ARC_LOWER no_crv_inf \
+    prism $EXIT_ARC_LOWER__PRISM hexcore 0 \
+    emax $EXIT_ARC_LOWER__EMAX \
+    law $EXIT_ARC_LOWER__LAW \
+    internal_wall $EXIT_ARC_LOWER__INTERNAL
+ic_geo_set_family_params EXIT_ARC_UPPER no_crv_inf \
+    prism $EXIT_ARC_UPPER__PRISM hexcore 0 \
+    emax $EXIT_ARC_UPPER__EMAX \
+    law $EXIT_ARC_UPPER__LAW
+ic_geo_set_family_params EXIT_FILM_LOWER no_crv_inf \
+    prism $EXIT_FILM_LOWER__PRISM hexcore 0 \
+    emax $EXIT_FILM_LOWER__EMAX \
+    law $EXIT_FILM_LOWER__LAW \
+    internal_wall $EXIT_FILM_LOWER__INTERNAL
+ic_geo_set_family_params EXIT_FILM_UPPER no_crv_inf \
+    prism $EXIT_FILM_UPPER__PRISM hexcore 0 \
+    emax $EXIT_FILM_UPPER__EMAX \
+    law $EXIT_FILM_UPPER__LAW \
+    internal_wall $EXIT_FILM_UPPER__INTERNAL
+ic_geo_set_family_params EXIT_INNER no_crv_inf \
+    prism $EXIT_INNER__PRISM hexcore 0 \
+    emax $EXIT_INNER__EMAX \
+    law $EXIT_INNER__LAW \
+    internal_wall $EXIT_INNER__INTERNAL
+ic_geo_set_family_params EXIT_LAST no_crv_inf \
+    prism $EXIT_LAST__PRISM hexcore 0 \
+    emax $EXIT_LAST__EMAX \
+    law $EXIT_LAST__LAW \
+    internal_wall $EXIT_LAST__INTERNAL
+ic_geo_set_family_params EXIT_OUTER no_crv_inf \
+    prism $EXIT_OUTER__PRISM hexcore 0 \
+    emax $EXIT_OUTER__EMAX \
+    law $EXIT_OUTER__LAW \
+    internal_wall $EXIT_OUTER__INTERNAL
+ic_geo_set_family_params FSN_INLET no_crv_inf \
+    prism $FSN_INLET__PRISM hexcore 0 \
+    emax $FSN_INLET__EMAX \
+    law $FSN_INLET__LAW \
+    internal_wall $FSN_INLET__INTERNAL
+ic_geo_set_family_params HOLES_LOWER no_crv_inf \
+    prism $HOLES_LOWER__PRISM hexcore 0 \
+    emax $HOLES_LOWER__EMAX \
+    law $HOLES_LOWER__LAW \
+    internal_wall $HOLES_LOWER__INTERNAL
+ic_geo_set_family_params HOLES_UPPER no_crv_inf \
+    prism $HOLES_UPPER__PRISM hexcore 0 \
+    emax $HOLES_UPPER__EMAX \
+    law $HOLES_UPPER__LAW \
+    internal_wall $HOLES_UPPER__INTERNAL
+ic_geo_set_family_params WALLS no_crv_inf \
+    prism $WALLS__PRISM hexcore 0 \
+    emax $WALLS__EMAX ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 \
+    law $WALLS__LAW split_wall 0 \
+    internal_wall $WALLS__INTERNAL
+ic_undo_group_end
+ic_geo_params_blank_done part 1
+
+printHeading "SAVING GEOMETRY AND PROJECT SETTINGS..."
+
+saveGeometry project_test
+saveProject project_test
+
+
+# =================================
+# ====== DIAGNOSTIC TOPOLOGY ======
+# =================================
+
+if { $REBUILD_TOPOLOGY == 1} {
+
+    printHeading "BUILDING DIAGNOSTIC TOPOLOGY..."
+    
+    ic_build_topo $DIAGNOSTIC_TOPOLOGY_TOLERANCE -angle $DIAGNOSTIC_TOPOLOGY_ANGLE \
+	-filter_points -filter_curves -no_reg_surf -no_concat -new_family GEOM
+}
+
+
+# =================================
+# ======  FLUID REGION SETUP ======
+# =================================
+
+printHeading "ADDING MATERIAL POINTS / GENERATING THE INTERNAL VOLUME..."
+
+ic_geo_new_family $FLUID_REGION
+ic_geo_create_volume {-270.2498 0.0 213.6147} {} $FLUID_REGION
+ic_geo_create_volume {-254.7594 0.0 201.4411} {} $FLUID_REGION
+ic_geo_create_volume {-179.5418 0.0 157.8887} {} $FLUID_REGION
+ic_geo_create_volume {-163.3638 0.0 132.6219} {} $FLUID_REGION
+
+
+# =========================================
+# ====== DENSITY-BASED REFINEMENT... ======
+# =========================================
+
+## Create points and density boxes for ogv region 1:
+#ic_geo_cre_pnt POINT ogv_region_1_pt_1 {-285.7500 -32.12465 202.8270 }
+#ic_geo_cre_pnt POINT ogv_region_1_pt_2 {-285.7500 0.000000 205.3553 }
+#ic_geo_cre_pnt POINT ogv_region_1_pt_3 {-285.7500 -35.58412 224.6693 }
+#ic_geo_cre_pnt POINT ogv_region_1_pt_4 {-285.7500 0.000000 227.4698 }
+#ic_geo_cre_pnt POINT ogv_region_1_pt_5 {-254.7495 -32.08237 202.5602}
+#ic_geo_cre_pnt POINT ogv_region_1_pt_6 {-254.7495 0.000000 205.0851 }
+#ic_geo_cre_pnt POINT ogv_region_1_pt_7 {-256.7929 -36.54697 230.7485 }
+#ic_geo_cre_pnt POINT ogv_region_1_pt_8 {-256.7929 0.000000 233.6248 }
+#ic_geo_create_density ogv_dens_1 0.6 {ogv_region_1_pt_1 ogv_region_1_pt_2 ogv_region_1_pt_3 ogv_region_1_pt_4 ogv_region_1_pt_5 ogv_region_1_pt_6 ogv_region_1_pt_7  ogv_region_1_pt_8} 0 0
+#
+## Create points and density boxes for ogv region 2:
+#ic_geo_cre_pnt POINT ogv_region_2_pt_1 {-285.7500 32.12465 202.8270 }
+#ic_geo_cre_pnt POINT ogv_region_2_pt_2 {-285.7500 0.000000 205.3553 }
+#ic_geo_cre_pnt POINT ogv_region_2_pt_3 {-285.7500 35.58412 224.6693 }
+#ic_geo_cre_pnt POINT ogv_region_2_pt_4 {-285.7500 0.000000 227.4698 }
+#ic_geo_cre_pnt POINT ogv_region_2_pt_5 {-254.7495 32.08237 202.5602}
+#ic_geo_cre_pnt POINT ogv_region_2_pt_6 {-254.7495 0.000000 205.0851 }
+#ic_geo_cre_pnt POINT ogv_region_2_pt_7 {-256.7929 36.54697 230.7485 }
+#ic_geo_cre_pnt POINT ogv_region_2_pt_8 {-256.7929 0.000000 233.6248 }
+#ic_geo_create_density ogv_dens_1 0.6 {ogv_region_2_pt_1 ogv_region_2_pt_2 ogv_region_2_pt_3 ogv_region_2_pt_4 ogv_region_2_pt_5 ogv_region_2_pt_6 ogv_region_2_pt_7  ogv_region_2_pt_8} 0 0
+
+
+# Create points and density boxes for heatshield/injector:
+#ic_geo_cre_pnt POINT fsn_pt1 {-235.7400 0.001343874 222.4819}
+#ic_geo_cre_pnt POINT fsn_pt2 {-199.2786 0.002188168 226.3121}
+#ic_geo_create_density fsn_dens3 0.6 {fsn_pt1 fsn_pt2} 39
+
+
+# Set meshing parameters:
+
+ic_set_meshing_params global 0 gref 1.0 gmax $MAXIMUM_CELL_SIZE gfast 0 gedgec $EDGE_CRITERION gnat 0.3 gcgap \
+    $CURVATURE_PROXIMITY_ELEMENTSINGAP gnatref $CURVATURE_PROXIMITY_REFINEMENT igwall 0
+ic_set_meshing_params variable 0 tetra_close_gaps 1
+ic_set_meshing_params variable 0 tetra_use_active_lcs 1
+ic_set_meshing_params surface_global 0 mesh_type 3 mesh_method 1 simple_offset 0 bunch_respect 0 protect_line 0 bound_smooth 1 block_mapping 0.2 adjust_nodes_max 0.0 proj_surf 1 surf_sizes 0 ign_size 0.06 try_harder 1 impr_level 1 mesh_dormant 0 smooth_dormant 0 max_area 0.0 max_length 0.0 min_angle 0.0 max_nodes 0 max_elements 0 merge_surfs 1 mapped_method 1 free_bunch 0 shrinkwrap_nsmooth 5 shrinkwrap_projfactor 0.1 snorm 1 quadratic 0
+
+
+# =============================
+# ====== SET PERIODICITY ======
+# =============================
+
+printHeading "SETTINGS UP PERIODICITY...."
+
+ic_geo_set_periodic_data "axis {1 0 0} type rot angle 18 base {0 0 0}"
+
+
+# ==========================
+# ====== PROJECT SAVE ======
+# ==========================
+
+printHeading "SAVING GEOMETRY AND PROJECT SETTINGS..."
+
+saveGeometry project_preMesh
+saveProject project_preMesh
+
+
+# ===========================
+# ====== TETRA MESHING ======
+# ===========================
+
+printHeading "GENERATING THE INTERNAL (TETRA) VOLUME MESH..."
+
+# Mesh generation (generate tetra mesh):
+ic_save_tetin Fluid_Vol-temp_tetra.tin
+ic_run_tetra Fluid_Vol-temp_tetra.tin ./tetra_mesh.uns run_cutter 1 delete_auto 1 run_smoother 0 fix_holes 1 n_processors $N_CORES in_process 1 auto_vol 1 log ./tetra_cmd.log
+ic_batch_mode
+ic_geo_set_modified 1
+
+printHeading "PERFORMING MESH SMOOTHING (PHASE 1)..."
+
+# Mesh smoothing
+ic_smooth_elements upto 0.3 iterations 5 fix_families {} metric Quality smooth TRI_3 float TETRA_4 laplace 1
+ic_smooth_elements upto 0.3 iterations 10 fix_families {} metric Quality smooth TETRA_4 freeze TRI_3
+ic_smooth_elements upto 0.3 iterations 10 fix_families {} metric Quality smooth TETRA_4 float TRI_3
+ic_smooth_elements upto 0.5 iterations 10 fix_families {} metric Quality smooth TETRA_4 smooth TRI_3
+
+
+# =========================
+# ====== MESH CHECKS ======
+# =========================
+
+printHeading "PERFORMING MESH CHECKS AND TRYING TO FIX PROBLEMS..."
+
+ic_uns_diag_reset_degen_min_max 
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type duplicate fix_fam FIX_DUPLICATE disp_subset uns_diag_0 diag_verb {Duplicate elements} fams {} busy_off 1 skip 0
+ic_uns_delete_contents uns_diag_0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type uncovered fix_fam FIX_UNCOVERED disp_subset uns_diag_0 diag_verb {Uncovered faces} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type missing_internal fix_fam FIX_MISSING_INTERNAL disp_subset uns_diag_0 diag_verb {Missing internal faces} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type vol_orient fix_fam FIX_VOL_ORIENT disp_subset uns_diag_0 diag_verb {Volume orientations} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type surf_orient fix_fam FIX_SURF_ORIENT disp_subset uns_diag_0 diag_verb {Surface orientations} fams {} busy_off 1 skip 0
+ic_uns_subset_configure uns_diag_0 -width 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type hanging fix_fam FIX_HANGING disp_subset uns_diag_0 diag_verb {Hanging elements} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type periodic_problem fix_fam FIX_PERIODIC_PROBLEM disp_subset uns_diag_0 diag_verb {Periodic problems} fams {PERIODIC_LEFT PERIODIC_RIGHT} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type penetrating fix_fam FIX_PENETRATING disp_subset uns_diag_0 diag_verb {Penetrating elements} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type disconnbars fix_fam FIX_DISCONNBARS disp_subset uns_diag_0 diag_verb {Disconnected bar elements} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type multiple fix_fam FIX_MULTIPLE disp_subset uns_diag_0 diag_verb {Multiple edges} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type triangle_box fix_fam FIX_TRIANGLE_BOX disp_subset uns_diag_0 diag_verb {Triangle boxes} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type single fix_fam FIX_SINGLE disp_subset uns_diag_0 diag_verb {Single edges} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type nmanvert fix_fam FIX_NMANVERT disp_subset uns_diag_0 diag_verb {Non-manifold vertices} fams {} busy_off 1 skip 0
+ic_uns_fix_non_man uns_diag_0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type single_2 fix_fam FIX_SINGLE_2 disp_subset uns_diag_0 diag_verb {2-Single edges} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type single_multiple fix_fam FIX_SINGLE_MULTIPLE disp_subset uns_diag_0 diag_verb {Single-Multiple edges} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type standalone fix_fam FIX_STANDALONE disp_subset uns_diag_0 diag_verb {Stand-alone surface mesh} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type overlap fix_fam FIX_OVERLAP disp_subset uns_diag_0 diag_verb {Overlapping elements} fams {} busy_off 1 skip 0
+ic_uns_fix_subset_by_remeshing uns_diag_0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type disconnected_vert fix_fam FIX_DISCONNECTED_VERT disp_subset uns_diag_0 diag_verb {Unconnected vertices} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_undo_group_end 
+
+mess "=================================\n"
+mess "FINAL MESH STATISTICS:\n"
+set n [ic_count_elements 3d]
+mess "MESH INFO - NO. OF 3D ELEMENTS = $n\n"
+set n [ic_count_elements]
+mess "MESH INFO - TOTAL NO. OF ELEMENTS = $n\n"
+set n [ic_count_nodes]
+mess "MESH INFO - NO. OF NODES = $n\n"
+mess "=================================\n"
+
+#mess "=======================================\n"
+#mess "=   Applying prism mesh setting       =\n"
+#mess "=======================================\n"
+#
+#ic_undo_group_begin 
+#ic_geo_set_family_params FLUID no_crv_inf prism 1 hexcore 0
+#ic_geo_set_family_params EXIT_OUTER_SWIRLER_INLET no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0.3 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 0 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 1
+#no_crv_inf prism 0 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 1
+#no_crv_inf prism 1 emax 0.0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 0 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 0 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 0 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0.3 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 1 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 0 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 0
+#no_crv_inf prism 0 emax 0.0 ehgt 0 hrat 0 nlay 0 erat 0 ewid 0 emin 0.0 edev 0.0 prism_height_limit 0 law -1 split_wall 0 internal_wall 1
+#ic_undo_group_end 
+#ic_geo_params_blank_done part 1
+
+printHeading "SAVING THE INTERNAL VOLUME MESH (TETRA ONLY)..."
+
+saveGeometry project_tetra
+saveMesh project_tetra
+
+
+# ==========================
+# ====== PRISM LAYERS ======
+# ==========================
+
+printHeading "GENERATING PRISM LAYERS..."
+
+# Apply prism layer settings
+ic_undo_group_begin 
+ic_set_meshing_params prism 0 law exponential layers $PRISM_INITIAL_LAYERS \
+    height $PRISM_INITIAL_HEIGHT ratio $PRISM_INITIAL_RATIO total_height $PRISM_INITIAL_TOTAL_HEIGHT \
+    prism_height_limit 0 max_prism_height_ratio {} stair_step 1 auto_reduction 0 \
+    min_prism_quality $PRISM_MIN_QUALITY max_prism_angle $PRISM_MAX_ANGLE \
+    fillet $PRISM_FILLET tetra_smooth_limit $PRISM_TETRA_SMOOTHING_LIMIT \
+    n_tetra_smoothing_steps $PRISM_TETRA_SMOOTHING_STEPS \
+    n_triangle_smoothing_steps $PRISM_TRIANGLE_SMOOTHING_STEPS
+ic_set_meshing_params variable 0 tgrid_n_ortho_layers 0 tgrid_fix_first_layer 0 tgrid_gap_factor 0.5 tgrid_enhance_norm_comp 0 tgrid_enhance_offset_comp 0 tgrid_smoothing_level 1 tgrid_max_cap_skew 0.98 tgrid_max_cell_skew 0.90 tgrid_last_layer_aspect {} triangle_quality inscribed_area
+ic_undo_group_end 
+
+# Generate the prism layers
+ic_undo_group_begin 
+ic_undo_group_begin 
+ic_save_tetin /tmp/temp_prism0.tin 0 0 {} {} 0
+ic_save_unstruct /tmp/temp_prism1.uns
+ic_rm prism.uns
+#! Check if the mesh law can be assigned using variables
+#! (When reading from *.prisms_params the variable is not tied to any value
+ic_run_prism /tmp/temp_prism0.tin /tmp/temp_prism1.uns prism.uns params project_prism.prism_params \
+    log prism_cmd.log n_processors $N_CORES smoothing_steps 0 first_layer_smoothing_steps 1 \
+    fillet $PRISM_FILLET max_prism_angle $PRISM_MAX_ANGLE min_prism_quality $PRISM_MIN_QUALITY \
+    tetra_smooth_limit $PRISM_TETRA_SMOOTHING_LIMIT family {WALLS law exponential} \
+    family HOLES_UPPER family EXIT_INNER family EXIT_OUTER family EXIT_ARC_UPPER family EXIT_ARC_LOWER \
+    family EXIT_LAST family EXIT_FILM_LOWER family EXIT_FILM_UPPER family EXIT_ADDITIONAL_UPPER \
+    family EXIT_ADDITIONAL_LOWER family FSN_INLET family HOLES_LOWER
+ic_rm /tmp/temp_prism0.tin
+ic_rm /tmp/temp_prism1.uns
+ic_undo_group_end 
+ic_uns_set_modified 0
+ic_delete_empty_parts 
+ic_undo_group_end 
+
+saveGeometry project_prism
+saveMesh project_prism
+saveProject project_prism
+
+exit
+
+#ic_undo_group_begin 
+#ic_undo_group_begin 
+#ic_save_unstruct /tmp/temp_prism0.uns
+#ic_rm prism.uns
+#ic_run_prism Fluid_Vol_tetra.tin /tmp/temp_prism0.uns prism.uns params Fluid_Vol_tetra.prism_params log prism_cmd.log n_processors 20 first_layer_smoothing_steps 1 fillet 0.1 max_prism_angle 180 min_prism_quality 0.0099999998 tetra_smooth_limit 0.30000001 family EXIT_BIG_6_INNER_FEED_HOLES family EXIT_BIG_8_OUTER_FEED_HOLES family EXIT_CRIC family EXIT_DOME_SWIRLER_INLET family EXIT_INNER_9_HOLES family EXIT_INNER_ANNULUS family EXIT_INNER_STARTER_FILM family EXIT_INNER_SWIRLER_INLET family EXIT_OUTER_10_HOLES family EXIT_OUTER_PEDESTAL_FEED family EXIT_OUTER_STARTER_FILM family EXIT_OUTER_SWIRLER_INLET family EXIT_SEMI-CIRCULAR_4_OUTER_FEED_HOLES family EXIT_SEMI_CIRCULAR_3_INNER_FEED_HOLES family W_CCOC family W_COWL family W_CRIC family W_FSN_ARM family W_FSN_EXT family W_HEATSHIELD family W_OGV_INNER_ARM family W_OGV_OUTER_ARM family {W_PREDIFF_INNER height 0.3} family {W_PREDIFF_OUTER height 0.3} family GEOM family FLUID
+#ic_rm /tmp/temp_prism0.uns
+#ic_undo_group_end 
+#ic_uns_set_modified 0
+#ic_delete_empty_parts 
+#ic_undo_group_end 
+#ic_undo_group_begin 
+#ic_save_unstruct /tmp/temp_prism0.uns
+#ic_rm prism.uns
+#ic_run_prism Fluid_Vol_tetra.tin /tmp/temp_prism0.uns prism.uns params Fluid_Vol_tetra.prism_params log prism_cmd.log n_processors 20 first_layer_smoothing_steps 1 fillet 0.1 max_prism_angle 180 min_prism_quality 0.0099999998 tetra_smooth_limit 0.30000001 family EXIT_BIG_6_INNER_FEED_HOLES family EXIT_BIG_8_OUTER_FEED_HOLES family EXIT_CRIC family EXIT_DOME_SWIRLER_INLET family EXIT_INNER_9_HOLES family EXIT_INNER_ANNULUS family EXIT_INNER_STARTER_FILM family EXIT_INNER_SWIRLER_INLET family EXIT_OUTER_10_HOLES family EXIT_OUTER_PEDESTAL_FEED family EXIT_OUTER_STARTER_FILM family EXIT_OUTER_SWIRLER_INLET family EXIT_SEMI-CIRCULAR_4_OUTER_FEED_HOLES family EXIT_SEMI_CIRCULAR_3_INNER_FEED_HOLES family W_CCOC family W_COWL family W_CRIC family W_FSN_ARM family W_FSN_EXT family W_HEATSHIELD family W_OGV_INNER_ARM family W_OGV_OUTER_ARM family {W_PREDIFF_INNER height 0.3} family {W_PREDIFF_OUTER height 0.3} family GEOM family FLUID
+#ic_rm /tmp/temp_prism0.uns
+#ic_unload_mesh 
+#ic_delete_empty_parts 
+#ic_uns_load prism.uns 3 0 {} 1
+#ic_uns_subset_visible {stuck elements} 0
+#ic_uns_update_family_type visible {EXIT_DOME_SWIRLER_INLET W_HEATSHIELD PERIODIC_LEFT POINT EXIT_INNER_ANNULUS W_COWL W_PREDIFF_OUTER W_OGV_INNER_ARM W_FSN_ARM IP_INNER_ANNULUS_INLET EXIT_OUTER_PEDESTAL_FEED POINTS W_FSN_EXT W_CCOC EXIT_SEMI-CIRCULAR_4_OUTER_FEED_HOLES EXIT_INNER_9_HOLES GEOM IP_PREDIFFUSER_EXIT EXIT_BIG_6_INNER_FEED_HOLES EXIT_INNER_STARTER_FILM W_PREDIFF_INNER IP_CRIC INLET_PREDIFFUSER EXIT_OUTER_SWIRLER_INLET EXIT_CRIC EXIT_OUTER_10_HOLES EXIT_OUTER_STARTER_FILM FLUID PERIODIC_RIGHT EXIT_SEMI_CIRCULAR_3_INNER_FEED_HOLES ORFN EXIT_BIG_8_OUTER_FEED_HOLES EXIT_OUTER_ANNULUS W_OGV_OUTER_ARM W_CRIC EXIT_INNER_SWIRLER_INLET} {NODE !LINE_2 TRI_3 QUAD_4 !TETRA_4 !PENTA_6 !PYRA_5} update 0
+#ic_boco_solver 
+#ic_boco_clear_icons 
+#ic_undo_group_end 
+#ic_uns_set_modified 0
+#ic_delete_empty_parts 
+#ic_set_global geo_cad 0.1 toler
+#ic_undo_group_end 
+#ic_uns_subset_delete smooth_show_map
+#ic_uns_diag_reset_degen_min_max 
+#ic_uns_subset_create smooth_do_map 0
+#ic_uns_subset_create smooth_show_map 1 {} 0
+#ic_uns_subset_configure smooth_do_map -list_type 1
+#ic_uns_subset_configure smooth_show_map -shade flat_wire -color white -dont_change_color_or_shade 1
+#ic_uns_update_family_type smooth_do_map {ORFN EXIT_BIG_6_INNER_FEED_HOLES EXIT_BIG_8_OUTER_FEED_HOLES EXIT_CRIC EXIT_DOME_SWIRLER_INLET EXIT_INNER_9_HOLES EXIT_INNER_ANNULUS EXIT_INNER_STARTER_FILM EXIT_INNER_SWIRLER_INLET EXIT_OUTER_10_HOLES EXIT_OUTER_ANNULUS EXIT_OUTER_PEDESTAL_FEED EXIT_OUTER_STARTER_FILM EXIT_OUTER_SWIRLER_INLET EXIT_SEMI-CIRCULAR_4_OUTER_FEED_HOLES EXIT_SEMI_CIRCULAR_3_INNER_FEED_HOLES INLET_PREDIFFUSER IP_CRIC IP_INNER_ANNULUS_INLET IP_PREDIFFUSER_EXIT PERIODIC_LEFT PERIODIC_RIGHT W_CCOC W_COWL W_CRIC W_FSN_ARM W_FSN_EXT W_HEATSHIELD W_OGV_INNER_ARM W_OGV_OUTER_ARM W_PREDIFF_INNER W_PREDIFF_OUTER GEOM FLUID POINT POINTS} {TETRA_4 TRI_3 PENTA_6 QUAD_4 PYRA_5} update 1
+#ic_uns_subset_delete smooth_show_map
+#ic_uns_diag_reset_degen_min_max 
+#ic_uns_metric smooth_do_map Quality prism_warp_weight 0.5 eval_at_node_method 0
+#ic_uns_histogram smooth_do_map 0.0 1.0 20
+#ic_undo_group_begin 
+#ic_uns_update_family_type smooth_do_map {ORFN EXIT_BIG_6_INNER_FEED_HOLES EXIT_BIG_8_OUTER_FEED_HOLES EXIT_CRIC EXIT_DOME_SWIRLER_INLET EXIT_INNER_9_HOLES EXIT_INNER_ANNULUS EXIT_INNER_STARTER_FILM EXIT_INNER_SWIRLER_INLET EXIT_OUTER_10_HOLES EXIT_OUTER_ANNULUS EXIT_OUTER_PEDESTAL_FEED EXIT_OUTER_STARTER_FILM EXIT_OUTER_SWIRLER_INLET EXIT_SEMI-CIRCULAR_4_OUTER_FEED_HOLES EXIT_SEMI_CIRCULAR_3_INNER_FEED_HOLES INLET_PREDIFFUSER IP_CRIC IP_INNER_ANNULUS_INLET IP_PREDIFFUSER_EXIT PERIODIC_LEFT PERIODIC_RIGHT W_CCOC W_COWL W_CRIC W_FSN_ARM W_FSN_EXT W_HEATSHIELD W_OGV_INNER_ARM W_OGV_OUTER_ARM W_PREDIFF_INNER W_PREDIFF_OUTER GEOM FLUID POINT POINTS} {TETRA_4 TRI_3 PENTA_6 QUAD_4 PYRA_5} update 1
+#ic_smooth_elements map smooth_do_map upto 0.5 iterations 10 prism_warp_weight 0.5 fix_families {} metric Quality smooth TETRA_4 smooth TRI_3 smooth PENTA_6 smooth QUAD_4 smooth PYRA_5 n_processors 1
+#ic_uns_diag_reset_degen_min_max 
+#ic_uns_subset_delete smooth_show_map
+#ic_uns_diag_reset_degen_min_max 
+#ic_uns_diag_reset_degen_min_max 
+#ic_uns_metric smooth_do_map Quality prism_warp_weight 0.5 eval_at_node_method 0
+#ic_uns_histogram smooth_do_map 0.0 1.0 20
+#ic_undo_group_end 
+#ic_undo_group_begin 
+#ic_uns_diag_reset_degen_min_max 
+#ic_uns_subset_delete smooth_show_map
+#ic_uns_diag_reset_degen_min_max 
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type duplicate fix_fam FIX_DUPLICATE disp_subset uns_diag_0 diag_verb {Duplicate elements} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type uncovered fix_fam FIX_UNCOVERED disp_subset uns_diag_0 diag_verb {Uncovered faces} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type missing_internal fix_fam FIX_MISSING_INTERNAL disp_subset uns_diag_0 diag_verb {Missing internal faces} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type vol_orient fix_fam FIX_VOL_ORIENT disp_subset uns_diag_0 diag_verb {Volume orientations} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type surf_orient fix_fam FIX_SURF_ORIENT disp_subset uns_diag_0 diag_verb {Surface orientations} fams {} busy_off 1 skip 0
+#ic_uns_subset_configure uns_diag_0 -width 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type hanging fix_fam FIX_HANGING disp_subset uns_diag_0 diag_verb {Hanging elements} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type periodic_problem fix_fam FIX_PERIODIC_PROBLEM disp_subset uns_diag_0 diag_verb {Periodic problems} fams {PERIODIC_LEFT PERIODIC_RIGHT} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type penetrating fix_fam FIX_PENETRATING disp_subset uns_diag_0 diag_verb {Penetrating elements} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type disconnbars fix_fam FIX_DISCONNBARS disp_subset uns_diag_0 diag_verb {Disconnected bar elements} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type multiple fix_fam FIX_MULTIPLE disp_subset uns_diag_0 diag_verb {Multiple edges} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type triangle_box fix_fam FIX_TRIANGLE_BOX disp_subset uns_diag_0 diag_verb {Triangle boxes} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type single fix_fam FIX_SINGLE disp_subset uns_diag_0 diag_verb {Single edges} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type nmanvert fix_fam FIX_NMANVERT disp_subset uns_diag_0 diag_verb {Non-manifold vertices} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type single_2 fix_fam FIX_SINGLE_2 disp_subset uns_diag_0 diag_verb {2-Single edges} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type single_multiple fix_fam FIX_SINGLE_MULTIPLE disp_subset uns_diag_0 diag_verb {Single-Multiple edges} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type standalone fix_fam FIX_STANDALONE disp_subset uns_diag_0 diag_verb {Stand-alone surface mesh} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type overlap fix_fam FIX_OVERLAP disp_subset uns_diag_0 diag_verb {Overlapping elements} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_uns_create_diagnostic_subset 
+#ic_uns_create_diagnostic_edgelist 1
+#ic_uns_diagnostic subset all diag_type disconnected_vert fix_fam FIX_DISCONNECTED_VERT disp_subset uns_diag_0 diag_verb {Unconnected vertices} fams {} busy_off 1 skip 0
+#ic_uns_subset_delete uns_diag_0
+#ic_uns_create_diagnostic_edgelist 0
+#ic_undo_group_end 
+#ic_uns_create_selection_subset 0
+#ic_uns_create_selection_edgelist 1
+#ic_uns_subset_configure uns_sel_0 -draw_nodes 1
+#ic_uns_uniqify uns_sel_0
+#ic_uns_subset_visible uns_sel_0 0
+#ic_uns_create_selection_edgelist 0
+#ic_uns_subset_delete uns_sel_0
+
+printHeading "PERFORMING 12-TO-1 TETRA->HEXA CONVERSION..."
+
+ic_undo_group_begin 
+ic_uns_convert_to_hexas 0.2 {} 0
+ic_uns_update_family_type visible {EXIT_DOME_SWIRLER_INLET W_HEATSHIELD PERIODIC_LEFT POINT EXIT_INNER_ANNULUS W_COWL W_PREDIFF_OUTER W_OGV_INNER_ARM W_FSN_ARM IP_INNER_ANNULUS_INLET EXIT_OUTER_PEDESTAL_FEED POINTS W_FSN_EXT W_CCOC EXIT_SEMI-CIRCULAR_4_OUTER_FEED_HOLES EXIT_INNER_9_HOLES GEOM IP_PREDIFFUSER_EXIT EXIT_BIG_6_INNER_FEED_HOLES EXIT_INNER_STARTER_FILM W_PREDIFF_INNER IP_CRIC INLET_PREDIFFUSER EXIT_OUTER_SWIRLER_INLET EXIT_CRIC EXIT_OUTER_10_HOLES EXIT_OUTER_STARTER_FILM FLUID PERIODIC_RIGHT EXIT_SEMI_CIRCULAR_3_INNER_FEED_HOLES ORFN EXIT_BIG_8_OUTER_FEED_HOLES EXIT_OUTER_ANNULUS W_OGV_OUTER_ARM W_CRIC EXIT_INNER_SWIRLER_INLET} {NODE !LINE_2 TRI_3 QUAD_4 !HEXA_8 !TETRA_4 !PENTA_6 !PYRA_5} update 0
+ic_undo_group_end 
+
+printHeading "PERFORMING MESH SMOOTHING (PHASE 2)..."
+
+ic_uns_subset_delete smooth_show_map
+ic_uns_diag_reset_degen_min_max 
+ic_uns_subset_create smooth_do_map 0
+ic_uns_subset_create smooth_show_map 1 {} 0
+ic_uns_subset_configure smooth_show_map -shade flat_wire -color white -dont_change_color_or_shade 1
+ic_uns_update_family_type smooth_do_map {ORFN EXIT_BIG_6_INNER_FEED_HOLES EXIT_BIG_8_OUTER_FEED_HOLES EXIT_CRIC EXIT_DOME_SWIRLER_INLET EXIT_INNER_9_HOLES EXIT_INNER_ANNULUS EXIT_INNER_STARTER_FILM EXIT_INNER_SWIRLER_INLET EXIT_OUTER_10_HOLES EXIT_OUTER_ANNULUS EXIT_OUTER_PEDESTAL_FEED EXIT_OUTER_STARTER_FILM EXIT_OUTER_SWIRLER_INLET EXIT_SEMI-CIRCULAR_4_OUTER_FEED_HOLES EXIT_SEMI_CIRCULAR_3_INNER_FEED_HOLES INLET_PREDIFFUSER IP_CRIC IP_INNER_ANNULUS_INLET IP_PREDIFFUSER_EXIT PERIODIC_LEFT PERIODIC_RIGHT W_CCOC W_COWL W_CRIC W_FSN_ARM W_FSN_EXT W_HEATSHIELD W_OGV_INNER_ARM W_OGV_OUTER_ARM W_PREDIFF_INNER W_PREDIFF_OUTER GEOM FLUID POINT POINTS} {TETRA_4 HEXA_8 TRI_3 PENTA_6 QUAD_4 PYRA_5} update 1
+ic_uns_subset_delete smooth_show_map
+ic_uns_diag_reset_degen_min_max 
+ic_uns_metric smooth_do_map Quality prism_warp_weight 0.5 eval_at_node_method 0
+ic_uns_histogram smooth_do_map 0.0 1.0 20
+ic_undo_group_begin 
+ic_uns_update_family_type smooth_do_map {ORFN EXIT_BIG_6_INNER_FEED_HOLES EXIT_BIG_8_OUTER_FEED_HOLES EXIT_CRIC EXIT_DOME_SWIRLER_INLET EXIT_INNER_9_HOLES EXIT_INNER_ANNULUS EXIT_INNER_STARTER_FILM EXIT_INNER_SWIRLER_INLET EXIT_OUTER_10_HOLES EXIT_OUTER_ANNULUS EXIT_OUTER_PEDESTAL_FEED EXIT_OUTER_STARTER_FILM EXIT_OUTER_SWIRLER_INLET EXIT_SEMI-CIRCULAR_4_OUTER_FEED_HOLES EXIT_SEMI_CIRCULAR_3_INNER_FEED_HOLES INLET_PREDIFFUSER IP_CRIC IP_INNER_ANNULUS_INLET IP_PREDIFFUSER_EXIT PERIODIC_LEFT PERIODIC_RIGHT W_CCOC W_COWL W_CRIC W_FSN_ARM W_FSN_EXT W_HEATSHIELD W_OGV_INNER_ARM W_OGV_OUTER_ARM W_PREDIFF_INNER W_PREDIFF_OUTER GEOM FLUID POINT POINTS} {TETRA_4 HEXA_8 TRI_3 PENTA_6 QUAD_4 PYRA_5} update 1
+ic_smooth_elements map smooth_do_map upto 0.5 iterations 10 prism_warp_weight 0.5 fix_families {} metric Quality smooth TETRA_4 smooth HEXA_8 smooth TRI_3 smooth PENTA_6 smooth QUAD_4 smooth PYRA_5 n_processors 20
+ic_uns_diag_reset_degen_min_max 
+ic_uns_subset_delete smooth_show_map
+ic_uns_diag_reset_degen_min_max 
+ic_uns_diag_reset_degen_min_max 
+ic_uns_metric smooth_do_map Quality prism_warp_weight 0.5 eval_at_node_method 0
+ic_uns_histogram smooth_do_map 0.0 1.0 20
+ic_undo_group_end 
+
+
+
+
+mess "=====================================================\n"
+mess "=   Performing Mesh Checks after Hex conversion:    =\n"
+mess "=====================================================\n"
+
+# Meshing Checks
+
+ic_undo_group_begin 
+ic_uns_diag_reset_degen_min_max 
+ic_uns_subset_delete smooth_show_map
+ic_uns_diag_reset_degen_min_max 
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type duplicate fix_fam FIX_DUPLICATE disp_subset uns_diag_0 diag_verb {Duplicate elements} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type uncovered fix_fam FIX_UNCOVERED disp_subset uns_diag_0 diag_verb {Uncovered faces} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type missing_internal fix_fam FIX_MISSING_INTERNAL disp_subset uns_diag_0 diag_verb {Missing internal faces} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type vol_orient fix_fam FIX_VOL_ORIENT disp_subset uns_diag_0 diag_verb {Volume orientations} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type surf_orient fix_fam FIX_SURF_ORIENT disp_subset uns_diag_0 diag_verb {Surface orientations} fams {} busy_off 1 skip 0
+ic_uns_subset_configure uns_diag_0 -width 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type hanging fix_fam FIX_HANGING disp_subset uns_diag_0 diag_verb {Hanging elements} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type periodic_problem fix_fam FIX_PERIODIC_PROBLEM disp_subset uns_diag_0 diag_verb {Periodic problems} fams {PERIODIC_LEFT PERIODIC_RIGHT} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type penetrating fix_fam FIX_PENETRATING disp_subset uns_diag_0 diag_verb {Penetrating elements} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type disconnbars fix_fam FIX_DISCONNBARS disp_subset uns_diag_0 diag_verb {Disconnected bar elements} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type multiple fix_fam FIX_MULTIPLE disp_subset uns_diag_0 diag_verb {Multiple edges} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type triangle_box fix_fam FIX_TRIANGLE_BOX disp_subset uns_diag_0 diag_verb {Triangle boxes} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type single fix_fam FIX_SINGLE disp_subset uns_diag_0 diag_verb {Single edges} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type nmanvert fix_fam FIX_NMANVERT disp_subset uns_diag_0 diag_verb {Non-manifold vertices} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type single_2 fix_fam FIX_SINGLE_2 disp_subset uns_diag_0 diag_verb {2-Single edges} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type single_multiple fix_fam FIX_SINGLE_MULTIPLE disp_subset uns_diag_0 diag_verb {Single-Multiple edges} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type standalone fix_fam FIX_STANDALONE disp_subset uns_diag_0 diag_verb {Stand-alone surface mesh} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type overlap fix_fam FIX_OVERLAP disp_subset uns_diag_0 diag_verb {Overlapping elements} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_uns_create_diagnostic_subset 
+ic_uns_create_diagnostic_edgelist 1
+ic_uns_diagnostic subset all diag_type disconnected_vert fix_fam FIX_DISCONNECTED_VERT disp_subset uns_diag_0 diag_verb {Unconnected vertices} fams {} busy_off 1 skip 0
+ic_uns_subset_delete uns_diag_0
+ic_uns_create_diagnostic_edgelist 0
+ic_undo_group_end 
+ic_delete_empty_parts 
+ic_delete_empty_parts 
+
+
+mess "=================================\n"
+mess "FINAL MESH STATISTICS:\n"
+set n [ic_count_elements 3d]
+mess "MESH INFO - NO. OF 3D ELEMENTS = $n\n"
+set n [ic_count_elements]
+mess "MESH INFO - TOTAL NO. OF ELEMENTS = $n\n"
+set n [ic_count_nodes]
+mess "MESH INFO - NO. OF NODES = $n\n"
+mess "=================================\n"
+
+
+mess "=====================================================\n"
+mess "=  		Saving the mesh	                  =\n"
+mess "=====================================================\n"
+
+
+
+ic_save_tetin Fluid_Vol.tin 0 0 {} {} 0 0 1
+ic_uns_check_duplicate_numbers 
+ic_uns_renumber_all_elements 1 1
+ic_save_unstruct Fluid_Vol.uns 1 {} {} {}
+ic_uns_set_modified 1
+ic_save_project_file Fluid_Vol.prj {array\ set\ file_name\ \{ {    catia_dir .} {    parts_dir .} {    domain_loaded 1} {    cart_file_loaded 0} {    cart_file {}} {    domain_saved Fluid_Vol.uns} {    archive {}} {    med_replay {}} {    topology_dir .} {    ugparts_dir .} {    icons {{$env(ICEM_ACN)/lib/ai_env/icons} {$env(ICEM_ACN)/lib/va/EZCAD/icons} {$env(ICEM_ACN)/lib/icons} {$env(ICEM_ACN)/lib/va/CABIN/icons}}} {    tetin Fluid_Vol.tin} {    family_boco {}} {    prism_params Fluid_Vol_tetra.prism_params} {    iges_dir .} {    solver_params_loaded 0} {    attributes_loaded 0} {    project_lock {}} {    attributes {}} {    domain Fluid_Vol.uns} {    domains_dir .} {    settings_loaded 0} {    settings Fluid_Vol.prj} {    blocking {}} {    hexa_replay {}} {    transfer_dir .} {    mesh_dir .} {    family_topo {}} {    gemsparts_dir .} {    family_boco_loaded 0} {    tetin_loaded 1} {    project_dir .} {    topo_mulcad_out {}} {    solver_params {}} \} array\ set\ options\ \{ {    expert 1} {    remote_path {}} {    tree_disp_quad 2} {    tree_disp_pyra 0} {    evaluate_diagnostic 0} {    histo_show_default 1} {    select_toggle_corners 0} {    remove_all 0} {    keep_existing_file_names 0} {    record_journal 1} {    edit_wait 0} {    face_mode 0} {    uns_shrink 100} {    select_mode all} {    med_save_emergency_tetin 1} {    user_name u610969} {    diag_which all} {    uns_warn_if_display 500000} {    uns_icons 0} {    bubble_delay 1000} {    external_num 1} {    tree_disp_tri 2} {    uns_nodes 0} {    apply_all 0} {    default_solver {STAR-CD 3.2.0}} {    temporary_directory /tmp} {    auto_save_emergency_tetin 1} {    uns_normals 0} {    flood_select_angle 0} {    home_after_load 1} {    project_active 0} {    histo_color_by_quality_default 1} {    undo_logging 1} {    tree_disp_hexa 0} {    histo_solid_default 1} {    host_name viz00_004} {    xhidden_full 1} {    replay_internal_editor 1} {    editor vi} {    mouse_color orange} {    auto_save_emergency_mesh 1} {    clear_undo 1} {    remote_acn {}} {    auto_load_default_solver 0} {    remote_sh csh} {    tree_disp_penta 0} {    n_processors 20} {    remote_host {}} {    save_to_new 0} {    quality_info Quality} {    tree_disp_node 2} {    med_save_emergency_mesh 1} {    redtext_color red} {    tree_disp_line 0} {    select_edge_mode 0} {    use_dlremote 0} {    max_mesh_map_size {}} {    show_tris 1} {    remote_user {}} {    icon_size Normal} {    uns_node_type Dots} {    enable_idle 0} {    auto_save_views 1} {    max_cad_map_size {}} {    display_origin 0} {    uns_warn_user_if_display 1000000} {    detail_info 0} {    win_java_help 0} {    show_factor 1} {    boundary_mode all} {    clean_up_tmp_files 1} {    auto_fix_uncovered_faces 1} {    med_save_emergency_blocking 1} {    uns_enums 0} {    uns_disp Wire} {    max_binary_tetin 0} {    tree_disp_tetra 0} \} array\ set\ disp_options\ \{ {    uns_dualmesh 0} {    uns_warn_if_display 500000} {    uns_normals_colored 0} {    uns_icons 0} {    uns_locked_elements 0} {    uns_shrink_npos 0} {    uns_node_type None} {    uns_icons_normals_vol 0} {    uns_bcfield 0} {    backup Wire} {    uns_nodes 0} {    uns_only_edges 0} {    uns_surf_bounds 0} {    uns_wide_lines 0} {    uns_vol_bounds 0} {    uns_displ_orient Triad} {    uns_orientation 0} {    uns_directions 0} {    uns_thickness 0} {    uns_shell_diagnostic 0} {    uns_normals 0} {    uns_couplings 0} {    uns_periodicity 0} {    uns_single_surfaces 0} {    uns_midside_nodes 1} {    uns_shrink 100} {    uns_multiple_surfaces 0} {    uns_no_inner 0} {    uns_enums 0} {    uns_disp Wire} {    uns_bcfield_name {}} {    uns_color_by_quality 0} {    uns_changes 0} {    uns_cut_delay_count 1000} \} {set icon_size1 24} {set icon_size2 35} {set thickness_defined 0} {set solver_type 1} {set solver_setup -1} array\ set\ prism_values\ \{ {    n_triangle_smoothing_steps 5} {    min_smoothing_steps {}} {    first_layer_smoothing_steps 1} {    new_volume {}} {    height 0} {    prism_height_limit 0} {    interpolate_heights {}} {    n_tetra_smoothing_steps 10} {    do_checks {}} {    delete_standalone {}} {    ortho_weight 0.50} {    max_aspect_ratio {}} {    ratio_max {}} {    incremental_write {}} {    total_height 0} {    use_prism_v10 {}} {    intermediate_write {}} {    delete_base_triangles {}} {    ratio_multiplier {}} {    verbosity_level {}} {    refine_prism_boundary {}} {    max_size_ratio {}} {    triangle_quality {}} {    max_prism_angle 180} {    tetra_smooth_limit 0.30000001} {    max_jump_factor {}} {    use_existing_quad_layers {}} {    layers 3} {    fillet 0.1} {    into_orphan 0} {    init_dir_from_prev {}} {    blayer_2d {}} {    do_not_allow_sticking {}} {    top_family {}} {    law exponential} {    min_smoothing_val {}} {    auto_reduction 0} {    max_prism_height_ratio 0} {    stop_columns {}} {    stair_step {}} {    smoothing_steps 12} {    side_family {}} {    min_prism_quality 0.0099999998} {    ratio 1.2} \} {set aie_current_flavor {}} array\ set\ vid_options\ \{ {    wb_import_mat_points 0} {    wb_NS_to_subset 0} {    wb_import_surface_bodies 1} {    wb_import_cad_att_pre {SDFEA;DDM}} {    wb_import_mix_res_line 0} {    wb_import_tritol 9.9999997e-05} {    auxiliary 0} {    wb_import_cad_att_trans 1} {    wb_import_mix_res -1} {    wb_import_mix_res_surface 0} {    show_name 0} {    wb_import_solid_bodies 1} {    wb_import_delete_solids 0} {    do_intersect_self_part 1} {    wb_import_mix_res_solid 0} {    wb_import_save_pmdb {}} {    inherit 1} {    default_part GEOM} {    new_srf_topo 1} {    wb_import_associativity_model_name {}} {    DelPerFlag 0} {    wb_import_line_bodies 0} {    wb_import_save_partfile 0} {    show_item_name 0} {    composite_tolerance 1.0} {    wb_NS_to_entity_parts 0} {    wb_import_en_sym_proc 1} {    wb_import_sel_proc 1} {    wb_import_work_points 0} {    wb_import_reference_key 0} {    wb_import_mix_res_point 0} {    wb_import_pluginname {}} {    wb_NS_only 0} {    wb_import_geom 1} {    wb_import_create_solids 0} {    wb_import_refresh_pmdb 0} {    wb_import_lcs 0} {    wb_import_sel_pre {}} {    wb_import_scale_geo Default} {    wb_import_load_pmdb {}} {    replace 0} {    wb_import_cad_associativity 0} {    same_pnt_tol 1e-4} {    tdv_axes 1} {    wb_import_mesh 0} {    vid_mode 0} {    DelBlkPerFlag 1} \} {set savedTreeVisibility {geomNode 1 geom_subsetNode 2 geomPointNode 0 geomCurveNode 2 geomSurfNode 0 geomBodyNode 2 geomDensityNode 0 meshNode 1 mesh_subsetNode 0 mesh_subset-stuck_elements 0 meshPointNode 2 meshLineNode 0 meshShellNode 2 meshTriNode 2 meshQuadNode 2 meshVolumeNode 0 meshHexaNode 0 meshTetraNode 0 meshPentaNode 0 meshPyraNode 0 partNode 2 part-EXIT_BIG_6_INNER_FEED_HOLES 2 part-EXIT_BIG_8_OUTER_FEED_HOLES 2 part-EXIT_CRIC 2 part-EXIT_DOME_SWIRLER_INLET 2 part-EXIT_INNER_9_HOLES 2 part-EXIT_INNER_ANNULUS 2 part-EXIT_INNER_STARTER_FILM 2 part-EXIT_INNER_SWIRLER_INLET 2 part-EXIT_OUTER_10_HOLES 2 part-EXIT_OUTER_ANNULUS 2 part-EXIT_OUTER_PEDESTAL_FEED 2 part-EXIT_OUTER_STARTER_FILM 2 part-EXIT_OUTER_SWIRLER_INLET 2 part-EXIT_SEMI-CIRCULAR_4_OUTER_FEED_HOLES 2 part-EXIT_SEMI_CIRCULAR_3_INNER_FEED_HOLES 2 part-FLUID 2 part-GEOM 2 part-INLET_PREDIFFUSER 2 part-IP_CRIC 2 part-IP_INNER_ANNULUS_INLET 2 part-IP_PREDIFFUSER_EXIT 2 part-ORFN 2 part-PERIODIC_LEFT 2 part-PERIODIC_RIGHT 2 part-POINT 2 part-POINTS 2 part-W_CCOC 2 part-W_COWL 2 part-W_CRIC 2 part-W_FSN_ARM 2 part-W_FSN_EXT 2 part-W_HEATSHIELD 2 part-W_OGV_INNER_ARM 2 part-W_OGV_OUTER_ARM 2 part-W_PREDIFF_INNER 2 part-W_PREDIFF_OUTER 2}} {set last_view {rot {0 0 0 1} scale {5.55491523644 5.55491523644 5.55491523644} center {-203.139 0.0 213.155} pos {0 0 0}}} array\ set\ cut_info\ \{ {    active 0} {    whole 1} \} array\ set\ hex_option\ \{ {    default_bunching_ratio 2.0} {    floating_grid 0} {    project_to_topo 0} {    n_tetra_smoothing_steps 20} {    sketching_mode 0} {    trfDeg 1} {    wr_hexa7 0} {    smooth_ogrid 0} {    find_worst 1-3} {    hexa_verbose_mode 0} {    old_eparams 0} {    uns_face_mesh_method uniform_quad} {    multigrid_level 0} {    uns_face_mesh one_tri} {    check_blck 1} {    proj_limit 0} {    check_inv 0} {    project_bspline 0} {    hexa_update_mode 1} {    default_bunching_law BiGeometric} {    worse_criterion Quality} \} array\ set\ saved_views\ \{ {    views {}} \}} {ICEM CFD}
+ic_boco_save Fluid_Vol.fbc
+ic_boco_save Fluid_Vol.atr
+
+
+printHeader "EXPORTING THE FLUENT MESH..."
+
+
+ic_boco_solver {STAR-CD 3.2.0}
+ic_solver_mesh_info {STAR-CD 3.2.0}
+ic_exec [file join $env(ICEM_ACN) icemcfd output-interfaces starcd32] -dom {Fluid_Vol.uns} -b {Fluid_Vol.fbc} {Fluid_Vol} -start 5 -inlet_model keps -all_bnd -scale 0.001,0.001,0.001

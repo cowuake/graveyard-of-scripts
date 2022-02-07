@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+
+import shutil
+import re
+import datetime as dt
+
+date_string = re.compile(r'\d\d/\d\d/\d\d\d\d')
+tab = '    '
+buffer_w = list(shutil.get_terminal_size())[0]
+
+def invalid_input():
+        cprint('########################')
+        cprint('# Error: INVALID INPUT #')
+        cprint('########################')
+
+def blank_lines(n_lines):
+    for i in range(n_lines):
+        print('')
+
+def cprint(STRING):
+    print(STRING.center(buffer_w))
+
+def main():
+    blank_lines(1)
+    print(2*tab+'Billing period?')
+    print(2*tab+'[ MM / DD / YYYY ] - [ MM / DD / YYYY ]')
+    blank_lines(1)
+    try:
+        b_period = input(tab)
+        b_period = date_string.findall(b_period.replace(' ', ''))
+        date1 = b_period[0]
+        date2 = b_period[1]
+        date1 = dt.date(int(date1[6:]), int(date1[0:2]), int(date1[3:5]))
+        date2 = dt.date(int(date2[6:]), int(date2[0:2]), int(date2[3:5]))
+        b_period = (date2 - date1)
+        b_period = float(b_period.days)
+        blank_lines(1)
+        print (2*tab+"Days of billing: " + str(int(b_period)))
+        blank_lines(1)
+        print ('')
+        print(2*tab+"Next person or 'FINISH' (ENTER)")
+        print(2*tab+'[NAME n°_days]')
+        blank_lines(1)
+        share_names = []
+        share_days = []
+        share = []
+        while True:
+            instruction = input(tab)
+            if str.lower(instruction.replace(' ', '')) == 'finish' \
+            or instruction.replace(' ', '') == '':
+                break
+            else:
+                for i in range(1,len(instruction)+1):
+                
+                    if instruction[i] == ' ':
+                        share_names.append(instruction[0:i].replace(' ',''))
+                        if (int(instruction[i:].replace(' ',''))) > 1:
+                            share_days.append(int(instruction[i:].replace(' ','')))
+                        else:
+                            share_days.append(s(int(instruction[i:].replace(' ','')))+b_period)
+                        break
+
+        for i in range(0, len(share_names)):
+            share_names[i] = share_names[i].capitalize()
+
+        print(2*tab+'Total of the bill (without symbols)?')
+        blank_lines(1)
+            
+        try:
+            instruction = input(tab)
+            total = float(instruction.replace(' ', ''))
+            divisor = float(0)
+            for i in range(0, len(share_names)):
+                divisor += share_days[i]
+            for i in range(0,len(share_names)):
+                share.append(((share_days[i])/divisor)*total)
+                
+            blank_lines(1)
+                
+            for i in range(0,len(share_names)):
+                temp = float(share[i])
+                _string = str(2*tab+str(share_names[i])+' for '+str(share_days[i])\
+                +' days pays '+'{:.2f}'.format(temp))
+                cprint(_string)
+                         
+        except(ValueError):
+            print( '  ValueError occurred.' )
+    except(IndexError):
+        print( '  IndexError occurred.' )
+    except(NameError):
+        print( '  NameError occurred.' )
+    
+    print ( '' )
+
+if __name__ == '__main__':
+    main()

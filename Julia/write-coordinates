@@ -1,0 +1,42 @@
+#!/usr/bin/env julia
+
+using DelimitedFiles
+
+input = readdlm( "EXPERIMENT_2D-BCs_XYZ_of_Pts.dat" , ',' , Float64 )
+
+# Convert to meters if the input is in millimiters
+# (Based on the assumption that values < 10 mm and > 10 m are not expected)
+if findmax( abs.( input ) )[ 1 ] > 10
+    input = input ./ 1000
+end
+
+function makeArray( input::Array{Float64,2} , nThetas::Int64 )::Array{Float64,2}
+    # For each radius we have a fixed axial coordinate
+    x = input[ : , 1 ]
+    x .+= 0.31810671943
+    r = input[ : , 3 ]
+
+    nRadii = size( input )[ 1 ]
+
+    θ = collect( range( -π/20 , stop = π/20 , length = nThetas ) )
+
+    output = Array{Float64}( undef , nThetas * nRadii , 3 )
+
+    k = 0
+    for j in 1:nThetas
+        for i in 1:nRadii
+            k += 1
+            @inbounds output[ k , 1 ] = x[ i ]
+            @inbounds output[ k , 2 ] = r[ i ] * cos( θ[ j ] )
+            @inbounds output[ k , 3 ] = r[ i ] * sin( θ[ j ] )
+        end
+    end
+
+    return output
+end
+
+output = makeArray( input , 500 )
+
+open( "coordinates.csv" , "w" ) do io
+    writedlm( io , output , ',' )
+end

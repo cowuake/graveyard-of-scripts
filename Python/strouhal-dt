@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+
+def read (type, idntf):
+	if type == 'num':
+		while True:
+			try:
+				var = float(input( '   Insert ' + idntf + ': '))
+				return(var)
+				break
+			except ValueError:
+				print('Invalid input!')
+print()
+
+U = read ('num', 'reference velocity')
+L = read ('num', 'reference lenght')
+expctSt = read ('num', 'expected Strouhal numer' )
+nCycles = read ( 'num', 'target number of cycles (Lift periods)')
+
+Dt = L/(U*expctSt*nCycles)
+
+print()
+print('   Evaluated time step is: ' + str(Dt))
+print()

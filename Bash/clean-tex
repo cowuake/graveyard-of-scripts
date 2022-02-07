@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+rm *.aux
+rm *.bbl
+rm *.blg
+rm *.fls
+rm *.log
+rm *.out
+rm *latexmk
+rm *synctex*

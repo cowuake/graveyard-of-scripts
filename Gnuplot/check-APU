@@ -1,0 +1,47 @@
+#!/usr/bin/gnuplot -c
+
+#set output "./APU.pdf"
+
+bind Close "exit gnuplot"
+set encoding utf8
+set terminal qt enhanced font "Liberation Sans,14" size 600, 600
+set size square
+
+nomgzone0 = "/home/rmura/gitRepos/TestCases/turbomachinery/APU_turbocharger/nomg/hybrid/history_0.dat"
+nomgzone1 = "/home/rmura/gitRepos/TestCases/turbomachinery/APU_turbocharger/nomg/hybrid/history_1.dat"
+v2zone0 = "/home/rmura/gitRepos/TestCases/turbomachinery/APU_turbocharger/V2/hybrid/history_0.dat"
+v2zone1 = "/home/rmura/gitRepos/TestCases/turbomachinery/APU_turbocharger/V2/hybrid/history_1.dat"
+w2zone0 = "/home/rmura/gitRepos/TestCases/turbomachinery/APU_turbocharger/W2/hybrid/history_0.dat"
+w2zone1 = "/home/rmura/gitRepos/TestCases/turbomachinery/APU_turbocharger/W2/hybrid/history_1.dat"
+
+set title "APU Turbocharger test case, BCGSTAB solver" font ",12"
+set xlabel "Iterations"
+set ylabel "ρ residual (log_{10})"
+
+set xrange [0:3500]
+
+set xlabel font ",12"
+set ylabel font ",12"
+set key font ",10"
+set xtics font ",10"
+set ytics font ",10"
+
+#set lmargin 0.05
+#set rmargin 0.05
+
+set grid
+# lt 2 is green
+# lt 5 is yellow
+# lt 7 is red
+plot \
+     nomgzone0 every::2 using 1:63 with lines lt 7 title "no multigrid (zone 0)",\
+     nomgzone1 every::2 using 1:63 with lines lt 7 dashtype 2 title "no multigrid (zone 1)",\
+     v2zone0 every::2 using 1:63 with lines lt 5 title "2-level V-Cycle (zone 0)",\
+     v2zone1 every::2 using 1:63 with lines lt 5 dashtype 2 title "2-level V-Cycle (zone 1)",\
+     w2zone0 every::2 using 1:63 with lines lt 2 title "2-level W-Cycle (zone 0)",\
+     w2zone1 every::2 using 1:63 with lines lt 2 dashtype 2 title "2-level W-Cycle (zone 1)"
+
+while(1){
+    replot
+    pause 1
+}

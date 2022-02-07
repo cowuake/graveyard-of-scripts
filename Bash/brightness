@@ -1,0 +1,12 @@
+#!/usr/bin/env zsh
+
+OLD_BRIGHTNESS=$(cat /sys/class/backlight/*/brightness)
+MAX_BRIGHTNESS=$(cat /sys/class/backlight/*/max_brightness)
+
+if [ -z $1 ]; then
+    echo "$OLD_BRIGHTNESS/$MAX_BRIGHTNESS*100" | bc -l | awk '{printf("%d\n",$1 + 0.5)}'
+else
+    NEW_PERCENT_BRIGHTNESS=$1
+    NEW_BRIGHTNESS=$(echo "$NEW_PERCENT_BRIGHTNESS/100*$MAX_BRIGHTNESS" | bc -l | awk '{printf("%d\n",$1 + 0.5)}')
+    echo $NEW_BRIGHTNESS | sudo tee /sys/class/backlight/*/brightness
+fi

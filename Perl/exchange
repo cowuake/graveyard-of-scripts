@@ -1,0 +1,107 @@
+#!/usr/bin/env perl
+
+use v5.10;
+use File::Find qw /find/;
+use File::Slurper qw /read_lines read_text write_text/;
+use Getopt::Long;
+
+INIT
+{
+    if (($#ARGV == 0) && ($ARGV[0] eq "--help")) {
+	system ("perldoc $0");
+    }
+}
+1;
+
+GetOptions ("exclude=s" => \$exclusion,
+            "verbose"   => \$verbose,
+            "backup"    => \$backup)    
+or die "Error in command line arguments\n";
+
+die "Not enough input arguments.\n" unless $ARGV[1];
+
+$exclusion = 'marmellatacattiva1991' unless $exclusion;
+
+my $counter = 0;
+
+find(
+    {
+        no_chdir => 1,
+        wanted   => sub
+	{
+            my $file_path = $File::Find::name;
+	    next unless -f $file_path;
+
+	    if ($file_path !~ m/$exclusion/)
+	    {
+            	my $text = read_text ($file_path);
+		if (index ($text, @ARGV[0]) != -1)
+		{
+		    ++$counter;
+		    say "Parsing file:\t$file_path\n============>\t# Exchanging patterns."
+		    	unless not $verbose;
+		    `cp $file_path $file_path.bak`
+		    	unless not $backup;
+		    $text =~ s/$ARGV[0]/$ARGV[1]/ge;
+		    write_text ($file_path, $text);
+                } else {
+		    say "Parsing file:\t$file_path\n============>\t# Nothing to do."
+		    	unless not $verbose;
+		}
+	    }
+        },
+    },
+    '.'
+);
+
+say "\nModified $counter files.";
+
+=head1 NAME
+
+exchange - Recursive substitution of patterns in files
+
+=head1 VERSION
+
+This documentation refers to exchange version ?.?.?
+
+=head1 USAGE
+
+exchange <old> <new> (--<options>)
+
+=head1 REQUIRED ARGUMENTS
+
+=head1 OPTIONS
+
+=over
+
+=item --exclude <pattern> to exclude files containg <pattern> in their name
+
+=item --verbose to visualize full output
+
+=item --backup to create a .bak file before applying changes
+
+=back
+
+=head1 DESCRIPTION
+
+The script is intended to be used for fast file pattern substitutions.
+All files and subdirectories under the current directory are explored in
+search for the <old> pattern, then any occurrencies are substituted with
+the <new> pattern.
+Note that the script is intented to work only with UTF8-encoded text files.
+
+=head1 AUTHOR
+
+Riccardo Mura (riccardo_mura@yahoo.com)
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2018 Riccardo Mura (riccardo_mura@yahoo.com).
+All rights reserved.
+
+This module is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+See L<https://dev.perl.org/licenses/artistic.html>.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

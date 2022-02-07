@@ -1,0 +1,49 @@
+#!/usr/bin/gnuplot -c
+
+#set output "./APU.pdf"
+
+bind Close "exit gnuplot"
+set encoding utf8
+set terminal qt enhanced font "Liberation Sans,14" size 600, 600
+set size square
+
+nomg = "/home/rmura/SU2_RUN/CUSTOM_AACHEN/turboNOMG/hybrid/history"
+v1 = "/home/rmura/SU2_RUN/CUSTOM_AACHEN/turboV1/hybrid/history"
+v2 = "/home/rmura/SU2_RUN/CUSTOM_AACHEN/turboV2/hybrid/history"
+w1 = "/home/rmura/SU2_RUN/CUSTOM_AACHEN/turboW1/hybrid/history"
+w2 = "/home/rmura/SU2_RUN/CUSTOM_AACHEN/turboW2/hybrid/history"
+v2mpi = "/home/rmura/SU2_RUN/CUSTOM_AACHEN/turboV2/MPI/history"
+w1mpi = "/home/rmura/SU2_RUN/CUSTOM_AACHEN/turboW1/MPI/history"
+
+set title "Aachen stator test case, BCGSTAB solver\n(1 machine, CPU: AMD Ryzen 4650U, 6 cores)" font ",12"
+set xlabel "Iterations"
+set ylabel "ρ residual (log_{10})"
+
+set xrange [0:60000]
+#set xrange [0:1000]
+
+set xlabel font ",12"
+set ylabel font ",12"
+set key font ",10"
+set xtics font ",10"
+set ytics font ",10"
+
+#set lmargin 0.05
+#set rmargin 0.05
+
+set grid
+# lt 2 is green
+# lt 5 is yellow
+# lt 7 is red
+plot \
+     nomg every::2 using 1:17 with lines lt 7 title "no multigrid (OpenMP)",\
+     w1 every::2 using 1:17 with lines lt 2 title "1-level W-Cycle (OpenMP)",\
+     v1 every::2 using 1:17 with lines lt 3 title "1-level V-Cycle (OpenMP)",\
+     v2 every::2 using 1:17 with lines lt 5 title "2-level V-Cycle (OpenMP)",\
+     v2mpi every::2 using 1:17 with lines lt 1 title "2-level V-Cycle (MPI)",\
+     w1mpi every::2 using 1:17 with lines lt 4 title "1-level W-Cycle (MPI)"
+
+while(1){
+    replot
+    pause 1
+}

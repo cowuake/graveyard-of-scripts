@@ -1,0 +1,136 @@
+#!/usr/bin/env julia
+
+using DelimitedFiles
+using Parameters
+using PyPlot
+using Printf
+
+labels = Dict(
+              :ρ     => "density",
+              :u     => "relative velocity vector:0",
+              :v     => "relative velocity vector:1",
+              :w     => "relative velocity vector:2",
+              :va    => "axial velocity",
+              :vr    => "radial velocity",
+              :vm    => "meridional velocity",
+              :x     => "Points:0",
+              :y     => "Points:1",
+              :z     => "Points:2",
+              :r     => "radius",
+              :θ     => "theta",
+              :whirl => "absolute axial whirl angle",
+              :pitch => "radial flow angle",
+              :p     => "static pressure",
+              :p0    => "absolute total pressure",
+              :t0    => "absolute total temperature",
+              :s     => "entropy",
+              :k     => "turbulent kinetic energy",
+              :ω     => "turbulent omega",
+             )
+
+hydraLabels = Dict( :r => "radius" , :θ => "theta" , :p0 => "ptotal" , :t0 => "ttotal" ,
+                    :whirl => "awhirl" , :pitch => "apitch" , :k => "turbke" , :ω => "turbomega" )
+
+input = readdlm( "2D_solution.csv" , ',' )
+inputHeader = input[ 1 , : ]
+input = input[ 2:end , : ]
+input = convert( Array{Float64} , input )
+
+function retrieveQuantities( input , inputHeader , labels )
+
+    dict = Dict{Symbol,Array{Float64}}()
+
+    for symbol in collect( keys( labels ) )
+        index = findall( inputHeader .==  labels[ symbol ])
+        push!( dict , symbol => dropdims( input[ : ,  index ] , dims=2 ) )
+    end
+
+    return dict
+end
+
+dict = retrieveQuantities( input , inputHeader , labels )
+@unpack x , y , z , r , θ , u , va , vr , whirl , pitch , p0 , t0 , k , ω = dict
+
+# ATTENTION! theta is expressed in radians in Paraview and needs conversion
+θ = rad2deg.( θ )
+
+tricontour( y , z , u , colors = "black" , levels = 12 )
+tricontourf( y , z , u , cmap = ColorMap( "inferno" ) , levels = 12 )
+axis( :equal )
+
+savefig( "./test.png" , dpi = 600 )
+
+function checkPitch( u , va , vr , pitch )
+    println( "==============" )
+    println( "CHECKING PITCH" )
+    println( "==============" )
+    println( "\tu                 " , u[ 1 : 3 ] )
+    println( "\tva                " , va[ 1 : 3 ] )
+    radPitch = deg2rad.( pitch[ 1 : 3 ] )
+    println( "\tpitch             " , radPitch )
+    computedPitch = atan.( vr[ 1 : 3 ] ./ va[ 1 : 3 ] )
+    println( "\tcomputed pitch    " , computedPitch )
+    degDiff = rad2deg.( radPitch ) .- rad2deg.( computedPitch )
+    println( "\tdiff in deg       " , degDiff )
+end
+
+checkPitch( u , va , vr , pitch )
+
+minFinalRadius = 0.224405879612
+
+maxOldRadius = findmax( r )[ 1 ]
+maxFinalRadius = 0.235338549397
+deltaR = maxFinalRadius - maxOldRadius
+
+r = r .- deltaR
+
+killIndexes = findall( r .< minFinalRadius )
+
+for vec in [ r , θ , p0 , t0 , whirl , pitch , k , ω ]
+    deleteat!( vec , killIndexes )
+end
+
+hydraSymbols = [ :r , :θ , :p0 , :t0 , :whirl , :pitch , :k , :ω ]
+hydraHeader = ""
+
+for symbol in hydraSymbols
+    global hydraHeader = string( hydraHeader , "\t" , hydraLabels[ symbol ] )
+end
+
+open( "BC.xml" , "w" ) do io
+
+    @printf( io , """
+<?xml version="1.0" encoding="UTF-8"?>
+<hydra>
+  <bc>
+    <table rank="2" ncols="%d" units="si" form="unstructured" interp="nearest_pt">
+      <dimensions>%d</dimensions>
+        <names>
+        """ , length( hydraSymbols ) - 1 , length( r ) )
+
+    println( io , hydraHeader )
+
+    println( io , """
+        </names>
+          <data>""" )
+
+    #writedlm( io , hcat( r , θ , p0 , t0 , whirl , pitch , k , ω ) , '\t' )
+
+    for i in 1:length( r )
+       for value in [ r , θ , p0 , t0 , whirl , pitch , k , ω ]
+           @printf( io , "\t%.8E" , value[ i ] )
+       end
+       print( io , "\n" )
+    end
+
+    println( io , """
+          </data>
+    </table>
+  </bc>
+</hydra>""" )
+
+end
+
+#open( "BC.xml" , "w" ) do io
+#    writedlm( io , [ hydraLabels[ symbol ] for symbol in hydraSymbols ] , '\t' )
+#end

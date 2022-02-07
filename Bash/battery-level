@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+path_ac="/sys/class/power_supply/AC"
+path_battery_0="/sys/class/power_supply/BAT0"
+path_battery_1="/sys/class/power_supply/BAT1"
+
+ac=0
+battery_level=0
+battery_level_0=0
+battery_level_1=0
+battery_max=0
+battery_max_0=0
+battery_max_1=0
+
+if [ -f "$path_ac/online" ]; then
+    ac=$(cat "$path_ac/online")
+fi
+
+if [ -d "$path_battery_0" ]; then
+
+    if [ -f "$path_battery_0/energy_now" ]; then
+        battery_level_0=$(cat "$path_battery_0/energy_now")
+    fi
+
+    if [ -f "$path_battery_0/energy_full" ]; then
+        battery_max_0=$(cat "$path_battery_0/energy_full")
+    fi
+
+    battery_level=$(("$battery_level + $battery_level_0"))
+    battery_max=$(("$battery_max + $battery_max_0"))
+fi
+
+if [ -d "$path_battery_1" ]; then
+
+    if [ -f "$path_battery_1/energy_now" ]; then
+        battery_level_1=$(cat "$path_battery_1/energy_now")
+    fi
+
+    if [ -f "$path_battery_1/energy_full" ]; then
+        battery_max_1=$(cat "$path_battery_1/energy_full")
+    fi
+
+    battery_level=$(("$battery_level + $battery_level_1"))
+    battery_max=$(("$battery_max + $battery_max_1"))
+fi
+
+battery_percent=$(("$battery_level * 100"))
+if ! [ "$battery_max" -eq 0 ]; then
+    battery_percent=$(("$battery_percent / $battery_max"))
+else
+    echo " Broken!"
+    exit
+fi
+
+if [ "$ac" -eq 1 ]; then
+    icon=""
+
+    if [[ "$battery_percent" -gt 99 && $(cat $path_battery_1/status) != "Charging" ]]; then
+        echo "$icon"
+        notify-send -u critical "Battery full."
+    else
+        echo "$icon $battery_percent %"
+    fi
+
+else
+    if [ "$battery_percent" -gt 85 ]; then
+        icon=""
+    elif [ "$battery_percent" -gt 60 ]; then
+        icon=""
+    elif [ "$battery_percent" -gt 35 ]; then
+        icon=""
+    elif [ "$battery_percent" -gt 10 ]; then
+        icon=""
+    else
+        icon=""
+        if [ "$battery_percent" -lt 4 ]; then
+            notify-send -u critical "Critical battery level. Plug into a socket or swap external battery."
+        fi
+    fi
+
+    echo "$icon $battery_percent %"
+fi

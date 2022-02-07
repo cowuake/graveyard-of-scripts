@@ -1,0 +1,110 @@
+#!/usr/bin/env perl
+
+use v5.28;
+use strict;
+use warnings;
+use Term::ANSIColor ':constants';
+
+INIT
+{
+    if (($#ARGV == 0) && ($ARGV[0] eq "--help")) {
+	system ("perldoc $0");
+    }
+}
+1;
+
+my @ps = `ps -A`;
+shift @ps;
+chomp @ps;
+
+my $process;
+
+my %exclude_cmds = (
+    'kdevtmpfs' => 1
+);
+
+my $color_cmd;
+my $color_pid;
+
+foreach my $process (@ps) {
+    if ($process =~ m/kde/
+        || $process =~ m/plasma/
+	|| $process =~ m/kactivity/
+	|| $process =~ m/kuiserver/
+	|| $process =~ m/kglobalaccel/)
+    {
+
+	$process =~ s/^\s+//;
+	my ($pid,$tty,$time,$cmd) =
+            split /\s+/, $process;
+
+        if (defined($exclude_cmds{$cmd})) { next; }
+	
+	$color_cmd = BOLD RED, $cmd, RESET;
+	$color_pid = BOLD BLUE, $pid, RESET;
+
+        print "Suspected intruder: $color_cmd (PID: $color_pid)\n";
+        print "    Want to kill? [y/n] ";
+        my $answer = <STDIN>;
+
+	if ($answer =~ /^[Yy]/)
+	{
+	    kill 'TERM', $pid;
+	    print "    Sent a TERM signal to the process\n";
+            
+	    if (`ps -A | grep $cmd`)
+	    {
+		kill 'KILL', $pid;
+		print "    Sent a KILL signal to the process\n";
+	    }
+
+	    if (`ps -A | grep $cmd`)
+	    {
+		print "    $cmd escaped death. Maybe sudo can help...\n";
+	    } else {
+	        print "        You fragged $cmd! ☠ \n";
+	    }
+
+	} else {
+
+	    print "        $cmd survived under your benevolence... ☮ \n";
+	}
+    }
+}
+
+
+=head1 NAME
+
+kdkill - Kill all KDE and Plasma related processes
+
+=head1 VERSION
+
+This documentation refers to kdkill version 0.1
+
+=head1 USAGE
+
+kdkill
+
+=head1 DESCRIPTION
+
+The script is intendend to be used out of a Plasma session.
+KDE native applications are used to spawn intrusive, resource-consuming processes, often having no useful effect.
+Use this script to clean up the system from those intruders in a non-destructive manner.
+For every potential intruder found, confirmation is asked before killing the process.
+A termination signal (B<SIGTERM>) is sent by default. If ineffective, a kill signal (B<SIGKILL>) is enforced.
+
+=head1 AUTHOR
+
+Riccardo Mura (riccardo_mura@yahoo.com)
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2018 Riccardo Mura (riccardo_mura@yahoo.com).
+All rights reserved.
+
+This module is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+See L<https://dev.perl.org/licenses/artistic.html>.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

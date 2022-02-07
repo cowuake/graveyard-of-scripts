@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+if [[ $1 =~ [0-9] ]]; then
+    volume=$1
+	pamixer --set-volume $volume
+    echo "Volume set to: $volume"
+    notify-send -u normal "Volume set to: $volume"
+else
+    volume=$(pamixer --get-volume)
+    echo "Current volume: $volume"
+    notify-send -u normal "Current volume: $volume"
+fi

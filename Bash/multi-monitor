@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+INTERNAL_OUTPUT=`xrandr | grep primary | awk '{print $1;}'`
+EXTERNAL_OUTPUT=`xrandr | grep -e VGA -e HDMI | grep " connected" | awk '{print $1;}'`
+NULL=""
+
+if [[ $EXTERNAL_OUTPUT = $NULL ]]; then
+    MONITOR_MODE="INTERNAL"
+    echo "${MONITOR_MODE}" > /tmp/MONITOR_MODE.dat
+    echo "No external output found."
+    exit 1
+fi
+
+if [[ ! -f "/tmp/MONITOR_MODE.dat" ]]; then
+    MONITOR_MODE="INTERNAL"
+else
+    MONITOR_MODE=`cat /tmp/MONITOR_MODE.dat`
+fi
+
+# NOT USING 'EXTERNAL' MODE!
+# xrandr --output $INTERNAL_OUTPUT --off --output $EXTERNAL_OUTPUT --auto
+
+if   [[ $MONITOR_MODE = "INTERNAL" ]]; then
+
+        MONITOR_MODE="CLONES"
+        xrandr --output $INTERNAL_OUTPUT --auto --output $EXTERNAL_OUTPUT --auto --same-as $INTERNAL_OUTPUT
+
+elif [[ $MONITOR_MODE = "CLONES" ]]; then
+
+        MONITOR_MODE="ALL"
+        xrandr --output $INTERNAL_OUTPUT --auto --output $EXTERNAL_OUTPUT --auto --right-of $INTERNAL_OUTPUT
+        set_wallpaper
+
+elif [[ $MONITOR_MODE = "all" ]]; then
+
+        MONITOR_MODE="INTERNAL"
+        xrandr --output $INTERNAL_OUTPUT --auto --output $EXTERNAL_OUTPUT --off
+
+else
+
+        MONITOR_MODE="INTERNAL"
+        xrandr --output $INTERNAL_OUTPUT --auto --output $EXTERNAL_OUTPUT --off
+
+fi
+
+echo "${MONITOR_MODE}" > /tmp/MONITOR_MODE.dat
+
+killall -q polybar; ~/.config/i3/stuff/polybar/start_polybar

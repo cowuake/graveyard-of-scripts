@@ -1,0 +1,27 @@
+#!/usr/bin/env/bash
+
+rm CL.txt
+rm CD.txt
+touch CL.txt
+touch CD.txt
+
+for DIR in ./*
+do
+    if [[ "echo $(pwd)" == *"SA"* ]]; then
+	CL=$(tail -n 50 $DIR/slurmjob*.out | grep '^|[[:space:]]*[[:digit:]]*|' | awk '{print $7}' | cut -c 1-8 | tail -n 1)
+	CD=$(tail -n 50 $DIR/slurmjob*.out | grep '^|[[:space:]]*[[:digit:]]*|' | awk '{print $8}' | cut -c 1-8 | tail -n 1)
+    else
+	CL=$(tail -n 50 $DIR/slurmjob*.out | grep '^|[[:space:]]*[[:digit:]]*|' | awk '{print $6}' | cut -c 1-8 | tail -n 1)
+	CD=$(tail -n 50 $DIR/slurmjob*.out | grep '^|[[:space:]]*[[:digit:]]*|' | awk '{print $7}' | cut -c 1-8 | tail -n 1)
+    fi
+
+    CELLS=$(cat $DIR/*.su2 | grep NELEM | awk '{print $2}')
+
+
+    if [[ "$CL" != "" || "$CD" != "" ]]; then
+	echo $CL > $DIR/CL.txt
+	echo $CD > $DIR/CD.txt
+	printf "$CELLS\t$CL\n" >> CL.txt
+	printf "$CELLS\t$CD\n" >> CD.txt
+    fi
+done

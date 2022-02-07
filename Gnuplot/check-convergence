@@ -1,0 +1,103 @@
+#!/usr/bin/gnuplot -persist
+
+#set output "./convergence.pdf"
+
+bind Close "exit gnuplot"
+set encoding utf8
+set terminal qt enhanced 0 font "Liberation Sans,14" size 600, 600
+#set size square
+
+refCL=0.241
+refCD=0.0079
+
+liftSAausm="./SA/AUSM+UP2/CL.txt"
+liftSAausmWang="./SA/AUSM+UP2_wang/CL.txt"
+liftSAjst="./SA/JST_MAT/CL.txt"
+liftSAjstWang="./SA/JST_MAT_WANG/CL.txt"
+liftSAroe="./SA/ROE/CL.txt"
+liftSAroeWang="./SA/ROE_wang/CL.txt"
+
+liftSSTausm="./SST/AUSM+UP2/CL.txt"
+liftSSTausmWang="./SST/AUSM+UP2_wang/CL.txt"
+liftSSTjst="./SST/JST_MAT/CL.txt"
+liftSSTjstWang="./SST/JST_MAT_WANG/CL.txt"
+liftSSTroe="./SST/ROE/CL.txt"
+liftSSTroeWang="./SST/ROE_wang/CL.txt"
+
+dragSAausm="./SA/AUSM+UP2/CD.txt"
+dragSAausmWang="./SA/AUSM+UP2_wang/CD.txt"
+dragSAjst="./SA/JST_MAT/CD.txt"
+dragSAjstWang="./SA/JST_MAT_WANG/CD.txt"
+dragSAroe="./SA/ROE/CD.txt"
+dragSAroeWang="./SA/ROE_wang/CD.txt"
+
+dragSSTausm="./SST/AUSM+UP2/CD.txt"
+dragSSTausmWang="./SST/AUSM+UP2_wang/CD.txt"
+dragSSTjst="./SST/JST_MAT/CD.txt"
+dragSSTjstWang="./SST/JST_MAT_WANG/CD.txt"
+dragSSTroe="./SST/ROE/CD.txt"
+dragSSTroeWang="./SST/ROE_wang/CD.txt"
+
+set xlabel "Primal mesh size (number of cells)"
+#set ylabel "Aerodynamic coeffients"
+set ylabel "C_L / C_{L,ref}"
+#set y2label "C_D / C_{D,ref}"
+#set y2tics
+#set ytics nomirror
+
+#set xrange [0:1000]
+
+set logscale x
+
+set xlabel font ",12"
+set ylabel font ",12"
+#set y2label font ",12"
+set key right bottom font ",10"
+set xtics font ",10"
+set ytics font ",10"
+#set y2tics font ",10"
+
+#set lmargin 0.05
+#set rmargin 0.05
+
+#set grid
+
+plot \
+     liftSAausm      using 1:($2/refCL) axis x1y1 with linespoints title "SA, AUSM+UP2 (C_L)",\
+     liftSAausmWang  using 1:($2/refCL) axis x1y1 with linespoints title "SA, AUSM+UP2 + Wang (C_L)",\
+     liftSAjst       using 1:($2/refCL) axis x1y1 with linespoints title "SA, JST (C_L)",\
+     liftSAjstWang   using 1:($2/refCL) axis x1y1 with linespoints title "SA, JST + Wang (C_L)",\
+     liftSAroe       using 1:($2/refCL) axis x1y1 with linespoints title "SA, ROE (C_L)",\
+     liftSAroeWang   using 1:($2/refCL) axis x1y1 with linespoints title "SA, ROE + Wang (C_L)",\
+     liftSSTausm     using 1:($2/refCL) axis x1y1 with linespoints title "SST, AUSM+UP2 (C_L)",\
+     liftSSTausmWang using 1:($2/refCL) axis x1y1 with linespoints title "SST, AUSM+UP2 + Wang (C_L)",\
+     liftSSTjst      using 1:($2/refCL) axis x1y1 with linespoints title "SST, JST (C_L)",\
+     liftSSTjstWang  using 1:($2/refCL) axis x1y1 with linespoints title "SST, JST + Wang (C_L)",\
+     liftSSTroe      using 1:($2/refCL) axis x1y1 with linespoints title "SST, ROE (C_L)",\
+     liftSSTroeWang  using 1:($2/refCL) axis x1y1 with linespoints title "SST, ROE + Wang (C_L)"
+
+
+set terminal qt enhanced 1 font "Liberation Sans,14" size 600, 600
+
+set xlabel "Primal mesh size (number of cells)"
+set ylabel "C_D / C_{D,ref}"
+set key right top font ",10"
+
+plot \
+     dragSAausm      using 1:($2/refCD) axis x1y1 with linespoints title "SA, AUSM+UP2 (C_D)",\
+     dragSAausmWang  using 1:($2/refCD) axis x1y1 with linespoints title "SA, AUSM+UP2 + Wang (C_D)",\
+     dragSAjst       using 1:($2/refCD) axis x1y1 with linespoints title "SA, JST (C_D)",\
+     dragSAjstWang   using 1:($2/refCD) axis x1y1 with linespoints title "SA, JST + Wang (C_D)",\
+     dragSAroe       using 1:($2/refCD) axis x1y1 with linespoints title "SA, ROE (C_D)",\
+     dragSAroeWang   using 1:($2/refCD) axis x1y1 with linespoints title "SA, ROE + Wang (C_D)",\
+     dragSSTausm     using 1:($2/refCD) axis x1y1 with linespoints title "SST, AUSM+UP2 (C_D)",\
+     dragSSTausmWang using 1:($2/refCD) axis x1y1 with linespoints title "SST, AUSM+UP2 + Wang (C_D)",\
+     dragSSTjst      using 1:($2/refCD) axis x1y1 with linespoints title "SST, JST (C_D)",\
+     dragSSTjstWang  using 1:($2/refCD) axis x1y1 with linespoints title "SST, JST + Wang (C_D)",\
+     dragSSTroe      using 1:($2/refCD) axis x1y1 with linespoints title "SST, ROE (C_D)",\
+     dragSSTroeWang  using 1:($2/refCD) axis x1y1 with linespoints title "SST, ROE + Wang (C_D)"
+
+#while(1){
+#    replot
+#    pause 1
+#}

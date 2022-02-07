@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+DEBIAN_NOW=buster
+DEBIAN_NEXT=bullseye
+MAIN_PAGE="https://packages.debian.org"
+LIST="/tmp/Debian_list"
+
+apt list 2>/dev/null | grep installed | awk -F/ '{print$1}' > $LIST
+
+LABEL1="package"
+LABEL2="debian_$DEBIAN_NOW"
+LABEL3="debian_$DEBIAN_NEXT"
+printf "%0.1s" "-"{1..80}
+printf "\n%30s %20s %20s\n" $LABEL1 $LABEL2 $LABEL3 | tr a-z A-Z
+printf "%0.1s" "-"{1..80}
+
+while IFS= read -r PKG
+do
+    PAGE_NEXT=$MAIN_PAGE/$DEBIAN_NEXT/"$PKG"
+
+    VERSION_NOW=$(apt policy $PKG 2>/dev/null|grep Candidate|awk '{print $2}')
+    VERSION_NEXT=$(curl -s "Accept: text/plain" "$PAGE_NEXT"|grep Package:\
+        |sed -e 's/.*(\(.*\))/\1/'|awk '{print $1}')
+
+    if ! [[ $VERSION_NOW = $VERSION_NEXT ]]; then
+        printf "\n%30s %20s %20s" $PKG $VERSION_NOW $VERSION_NEXT
+    fi
+done < "$LIST"

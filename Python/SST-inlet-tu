@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+import numpy as np
+from scipy.optimize import newton
+
+def read (type, idntf):
+    if type == 'num':
+        while True:
+            try:
+                var = float (input ('   Insert ' + idntf + ': '))
+                return (var)
+                break
+            except ValueError :
+                print ('Invalid input!')
+
+print ()
+
+beta = 0.09
+betaStar = 0.0828                
+                
+rho = read ('num', 'density')
+mu = read ('num', 'dynamic viscosity')
+Tu = read ('num', 'Desired Turbulence Intensity at the obstacle (%)')
+U = read ('num', 'reference velocity')
+x = read ('num', 'distance from inlet')
+muRatio = read ('num', 'Eddy Viscosity Ratio')
+
+Tu /= 100
+
+f = lambda tuInlet: np.sqrt((tuInlet**2.0)*(1.0 + (3.0*rho*U*x*beta \
+    *(tuInlet**2.0)) / (2.0*mu*muRatio))**(-betaStar/beta)) - Tu
+    
+tuInlet = newton(f, Tu/100., maxiter=1000)
+tuInlet *= 100
+
+print ()
+print ('   Tu at inlet must be: ' + str(tuInlet) + ' (%)')
+print ()
+
+print ('   SST model constants were used:')
+print ()
+print ('   +++++++++++++++++++++++++++++++++++')
+print ('        beta       |        0.09')
+print ('        beta*      |       0.0828')
+print ('   +++++++++++++++++++++++++++++++++++')
+print ()
